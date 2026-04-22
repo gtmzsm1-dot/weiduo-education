@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学生私人订制档案 · 西安维多教育</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--navy:#1A2B4E;--gold:#C8A951;--blue:#1565C0;--light:#F5F7FA;--border:#E0E0E0;--text:#333;--sub:#777;--green:#2E7D32;--orange:#E65100;--purple:#6A1B9A;--teal:#00838F;--red:#C62828}
+body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif;background:var(--light);color:var(--text);min-height:100vh}
+
+/* ===== 登录页 ===== */
+.login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1A2B4E 0%,#2C3E6B 50%,#1A2B4E 100%);position:relative;overflow:hidden}
+.login-page::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(200,169,81,0.08),transparent 70%);top:-200px;right:-100px}
+.login-page::after{content:'';position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(200,169,81,0.05),transparent 70%);bottom:-100px;left:-50px}
+.login-box{background:#fff;border-radius:16px;padding:48px 40px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative;z-index:1}
+.login-box .brand{text-align:center;margin-bottom:32px}
+.login-box .brand h1{font-size:22px;color:var(--navy);letter-spacing:2px}
+.login-box .brand .sub{font-size:12px;color:var(--gold);margin-top:6px;letter-spacing:3px}
+.login-box .brand .school{font-size:13px;color:var(--sub);margin-top:12px}
+.login-box .divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:24px 0}
+.login-box .lock-icon{text-align:center;font-size:40px;margin-bottom:16px}
+.login-box .hint{text-align:center;font-size:14px;color:var(--sub);margin-bottom:24px;line-height:1.8}
+.login-box .input-group{margin-bottom:20px}
+.login-box .input-group label{display:block;font-size:12px;color:#999;margin-bottom:6px;letter-spacing:1px}
+.login-box .input-group input,.login-box .input-group select{width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:8px;font-size:16px;letter-spacing:4px;text-align:center;transition:border-color .2s;outline:none;font-family:inherit}
+.login-box .input-group input:focus,.login-box .input-group select:focus{border-color:var(--gold)}
+.login-box .btn-login{width:100%;padding:14px;background:linear-gradient(135deg,var(--navy),#2C3E6B);color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;letter-spacing:2px;transition:transform .1s,box-shadow .2s;font-family:inherit}
+.login-box .btn-login:hover{box-shadow:0 4px 16px rgba(26,43,78,.4)}
+.login-box .btn-login:active{transform:scale(0.98)}
+.login-box .error-msg{text-align:center;color:var(--red);font-size:13px;margin-top:12px;min-height:20px}
+.login-box .footer-text{text-align:center;font-size:11px;color:#ccc;margin-top:24px}
+.login-mode-tabs{display:flex;margin-bottom:24px;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.login-mode-tab{flex:1;padding:10px;text-align:center;font-size:13px;cursor:pointer;background:var(--light);color:var(--sub);transition:all .2s;border:none;font-family:inherit}
+.login-mode-tab.active{background:var(--navy);color:#fff;font-weight:600}
+
+/* ===== 管理页 ===== */
+.admin-page{display:none}
+.admin-toggle{position:fixed;bottom:20px;right:20px;z-index:200;background:var(--navy);color:var(--gold);border:2px solid var(--gold);border-radius:50%;width:44px;height:44px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.2);transition:transform .2s}
+.admin-toggle:hover{transform:scale(1.1)}
+.admin-panel{position:fixed;bottom:74px;right:20px;z-index:200;background:#fff;border-radius:12px;padding:24px;width:400px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.15);display:none;max-height:70vh;overflow-y:auto}
+.admin-panel.show{display:block}
+.admin-panel h3{font-size:15px;color:var(--navy);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.admin-panel .close-btn{position:absolute;top:12px;right:16px;background:none;border:none;font-size:18px;cursor:pointer;color:#999}
+.admin-section{margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.admin-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.admin-section h4{font-size:13px;color:var(--navy);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.admin-btn{display:inline-flex;align-items:center;gap:4px;padding:8px 16px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text);transition:all .2s;font-family:inherit}
+.admin-btn:hover{background:var(--light);border-color:var(--navy)}
+.admin-btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+.admin-btn.primary:hover{background:#2C3E6B}
+.admin-btn.danger{background:#fff;color:var(--red);border-color:var(--red)}
+.admin-btn.danger:hover{background:#FFEBEE}
+.admin-btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.qr-item{display:flex;align-items:center;gap:16px;padding:12px;background:var(--light);border-radius:8px;margin-bottom:12px}
+.qr-item .qr-code{flex-shrink:0}
+.qr-item .qr-info{font-size:13px}
+.qr-item .qr-info .name{font-weight:600;color:var(--navy);font-size:14px}
+.qr-item .qr-info .code{color:var(--gold);font-family:monospace;font-size:15px;letter-spacing:2px;margin-top:4px}
+.qr-item .qr-info .tip{color:var(--sub);font-size:11px;margin-top:4px}
+
+/* ===== 档案页面 ===== */
+.top-bar{background:var(--navy);color:#fff;padding:12px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.top-bar .logo{display:flex;align-items:center;gap:12px}
+.top-bar .logo h1{font-size:18px;color:var(--gold);letter-spacing:1px}
+.top-bar .logo span{font-size:12px;color:#8899BB}
+.top-bar .school{font-size:13px;color:#AABBCC}
+.top-bar .btn-logout{background:none;border:1px solid rgba(255,255,255,.3);color:#AABBCC;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-family:inherit}
+.top-bar .btn-logout:hover{border-color:var(--gold);color:var(--gold)}
+.container{display:flex;min-height:calc(100vh - 52px)}
+.sidebar{width:260px;background:#fff;border-right:1px solid var(--border);padding:0;flex-shrink:0;display:flex;flex-direction:column}
+.sidebar-header{padding:16px 20px;border-bottom:1px solid var(--border)}
+.sidebar-header .search-box{display:flex;gap:8px}
+.sidebar-header .search-box input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;font-family:inherit}
+.sidebar-header .search-box input:focus{border-color:var(--gold)}
+.sidebar-header .search-box button{padding:8px 12px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;font-family:inherit}
+.sidebar-list{flex:1;overflow-y:auto}
+.sidebar .section-title{font-size:11px;color:#999;padding:16px 20px 8px;text-transform:uppercase;letter-spacing:2px}
+.sidebar .student-card{padding:14px 20px;cursor:pointer;border-left:4px solid transparent;transition:all .2s;display:flex;align-items:center;gap:12px}
+.sidebar .student-card:hover{background:var(--light)}
+.sidebar .student-card.active{background:#E8EDF5;border-left-color:var(--gold)}
+.sidebar .student-card .avatar-sm{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;font-weight:700;flex-shrink:0}
+.sidebar .student-card .avatar-sm.female{background:linear-gradient(135deg,#E91E63,#9C27B0)}
+.sidebar .student-card .avatar-sm.male{background:linear-gradient(135deg,#1565C0,#0D47A1)}
+.sidebar .student-card .info-wrap{flex:1;min-width:0}
+.sidebar .student-card .name{font-size:14px;font-weight:600;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar .student-card .meta{font-size:11px;color:var(--sub);margin-top:2px}
+.sidebar .student-card .comm-warn{font-size:10px;color:var(--red);margin-top:3px;font-weight:500}
+.sidebar .student-card .comm-ok{font-size:10px;color:var(--green);margin-top:3px}
+.sidebar-add{padding:12px 20px;border-top:1px solid var(--border)}
+.sidebar-add button{width:100%;padding:8px;background:none;border:1px dashed var(--border);border-radius:6px;color:var(--sub);cursor:pointer;font-size:12px;font-family:inherit;transition:all .2s}
+.sidebar-add button:hover{border-color:var(--gold);color:var(--gold);background:#FFFDE7}
+.main{flex:1;padding:28px 36px;overflow-y:auto;max-height:calc(100vh - 52px)}
+.welcome{text-align:center;padding:80px 0}
+.welcome h2{font-size:28px;color:var(--navy);margin-bottom:12px}
+.welcome p{color:var(--sub);font-size:15px}
+.profile-header{display:flex;align-items:center;gap:24px;background:#fff;border-radius:12px;padding:28px 32px;margin-bottom:28px;box-shadow:0 1px 4px rgba(0,0,0,.06);flex-wrap:wrap;position:relative}
+.avatar{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;font-weight:700;flex-shrink:0}
+.avatar.female{background:linear-gradient(135deg,#E91E63,#9C27B0)}
+.avatar.male{background:linear-gradient(135deg,#1565C0,#0D47A1)}
+.profile-header .details h2{font-size:22px;color:var(--navy)}
+.profile-header .details .meta{display:flex;gap:16px;margin-top:8px;font-size:13px;color:var(--sub);flex-wrap:wrap}
+.profile-header .details .meta span{display:flex;align-items:center;gap:4px}
+.archive-badge{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#FFFDE7,#FFF8E1);border:1px solid var(--gold);border-radius:20px;padding:6px 16px;font-size:12px;color:#8D6E00;font-weight:600;letter-spacing:1px}
+.archive-badge .code{font-family:'Courier New',monospace;font-size:14px;color:var(--navy)}
+.btn-edit{position:absolute;top:16px;right:16px;padding:6px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px}
+.btn-edit:hover{background:#2C3E6B}
+.tabs{display:flex;gap:4px;margin-bottom:24px;background:#fff;border-radius:8px;padding:4px;box-shadow:0 1px 3px rgba(0,0,0,.05);flex-wrap:wrap}
+.tab{padding:10px 18px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--sub);transition:all .2s;white-space:nowrap}
+.tab:hover{color:var(--navy);background:var(--light)}
+.tab.active{background:var(--navy);color:#fff;font-weight:600}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.card{background:#fff;border-radius:10px;padding:24px 28px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card h3{font-size:15px;color:var(--navy);margin-bottom:16px;display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.card h3 .icon{font-size:18px}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.info-item .label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.info-item .value{font-size:14px;color:var(--text);font-weight:500}
+.info-item .value.empty{color:#ccc;font-style:italic}
+.tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:500}
+.tag.blue{background:#E3F2FD;color:#1565C0}
+.tag.green{background:#E8F5E9;color:#2E7D32}
+.tag.orange{background:#FFF3E0;color:#E65100}
+.tag.purple{background:#F3E5F5;color:#6A1B9A}
+.tag.red{background:#FFEBEE;color:#C62828}
+.tag.teal{background:#E0F7FA;color:#00838F}
+.tag.gold{background:#FFFDE7;color:#F57F17}
+.score-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px;margin:16px 0}
+.score-box{text-align:center;padding:16px 8px;border-radius:8px;background:var(--light)}
+.score-box .subject{font-size:11px;color:var(--sub);margin-bottom:6px}
+.score-box .score{font-size:22px;font-weight:700}
+.score-box .score.low{color:var(--red)}
+.score-box .score.mid{color:var(--orange)}
+.score-box .score.high{color:var(--green)}
+.score-box .unit{font-size:11px;color:#999}
+.weakness-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.timeline{position:relative;padding-left:28px}
+.timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--border)}
+.timeline-item{position:relative;margin-bottom:24px}
+.timeline-item::before{content:'';position:absolute;left:-24px;top:4px;width:12px;height:12px;border-radius:50%;border:2px solid var(--gold);background:#fff}
+.timeline-item .date{font-size:12px;color:var(--sub);margin-bottom:4px}
+.timeline-item .content{background:var(--light);border-radius:8px;padding:14px 18px}
+.timeline-item .content .title{font-size:14px;font-weight:600;color:var(--navy);margin-bottom:6px}
+.timeline-item .content .desc{font-size:13px;color:var(--sub);line-height:1.6}
+.goal-steps{display:flex;gap:0;margin:16px 0;align-items:stretch}
+.goal-step{flex:1;text-align:center;padding:18px 12px;position:relative;background:var(--light)}
+.goal-step:first-child{border-radius:8px 0 0 8px}
+.goal-step:last-child{border-radius:0 8px 8px 0}
+.goal-step .period{font-size:11px;color:var(--sub);margin-bottom:6px}
+.goal-step .target{font-size:16px;font-weight:700;color:var(--navy)}
+.goal-step .desc{font-size:12px;color:var(--sub);margin-top:4px}
+.goal-step+.goal-step{border-left:2px solid #ddd}
+.goal-step .arrow{position:absolute;right:-8px;top:50%;transform:translateY(-50%);z-index:1;color:var(--gold);font-size:14px}
+.comm-card{border-left:4px solid var(--teal);background:var(--light);border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:16px}
+.comm-card .date{font-size:12px;color:var(--sub)}
+.comm-card .method{font-size:12px;margin-top:4px}
+.comm-card .summary{font-size:14px;margin-top:8px;color:var(--text);line-height:1.6}
+.comm-card .demand{font-size:13px;color:var(--orange);margin-top:8px;font-weight:500}
+.honor-card{display:flex;gap:16px;align-items:flex-start;padding:16px;background:var(--light);border-radius:8px;margin-bottom:12px}
+.honor-card .honor-icon{font-size:32px;flex-shrink:0}
+.honor-card .honor-info .type{font-weight:600;color:var(--navy)}
+.honor-card .honor-info .detail{font-size:13px;color:var(--sub);margin-top:4px;line-height:1.5}
+.honor-card .honor-info .progress{font-size:12px;color:var(--green);margin-top:4px;font-weight:500}
+.footer{text-align:center;padding:24px;color:#ccc;font-size:11px}
+
+/* ===== 编辑弹窗 ===== */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:12px;width:600px;max-width:95vw;max-height:85vh;overflow-y:auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal h3{font-size:16px;color:var(--navy);margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.modal .form-group{margin-bottom:16px}
+.modal .form-group label{display:block;font-size:12px;color:#999;margin-bottom:4px}
+.modal .form-group input,.modal .form-group select,.modal .form-group textarea{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;outline:none;font-family:inherit}
+.modal .form-group input:focus,.modal .form-group select:focus,.modal .form-group textarea:focus{border-color:var(--gold)}
+.modal .form-group textarea{min-height:60px;resize:vertical}
+.modal .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal .btn-row{display:flex;gap:12px;justify-content:flex-end;margin-top:20px}
+
+/* ===== 提示条 ===== */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 24px;border-radius:8px;font-size:13px;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.2);opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+
+/* ===== 统计面板 ===== */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.stat-box{background:#fff;border-radius:10px;padding:18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.stat-box .stat-num{font-size:28px;font-weight:700;color:var(--navy)}
+.stat-box .stat-label{font-size:11px;color:var(--sub);margin-top:4px;letter-spacing:1px}
+
+/* ===== 导入导出 ===== */
+.import-area{border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:all .2s}
+.import-area:hover{border-color:var(--gold);background:#FFFDE7}
+.import-area input{display:none}
+
+@media(max-width:768px){
+.container{flex-direction:column}
+.sidebar{width:100%;max-height:200px;display:flex;flex-direction:column}
+.sidebar-list{display:flex;overflow-x:auto;overflow-y:hidden}
+.sidebar .section-title{display:none}
+.sidebar .student-card{border-left:none;border-bottom:3px solid transparent;white-space:nowrap}
+.sidebar .student-card.active{border-bottom-color:var(--gold)}
+.main{padding:16px}
+.profile-header{flex-direction:column;text-align:center}
+.info-grid{grid-template-columns:1fr}
+.goal-steps{flex-direction:column}
+.goal-step+.goal-step{border-left:none;border-top:2px solid #ddd}
+.goal-step .arrow{display:none}
+.tabs{overflow-x:auto}
+.login-box{padding:32px 24px}
+.modal{width:95vw;padding:20px}
+.modal .form-row{grid-template-columns:1fr}
+.admin-panel{width:95vw;right:2.5vw}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== 提示条 ===== -->
+<div class="toast" id="toast"></div>
+
+<!-- ===== 登录页 ===== -->
+<div class="login-page" id="loginPage">
+  <div class="login-box">
+    <div class="brand">
+      <h1>私人订制档案</h1>
+      <div class="sub">PERSONALIZED PROFILE</div>
+      <div class="school">西安维多教育 · 曲江校区</div>
+    </div>
+    <div class="divider"></div>
+    <div class="lock-icon">🔒</div>
+    <!-- 登录模式切换 -->
+    <div class="login-mode-tabs">
+      <button class="login-mode-tab active" onclick="switchLoginMode('code')">家长/老师查询</button>
+      <button class="login-mode-tab" onclick="switchLoginMode('admin')">管理员登录</button>
+    </div>
+    <!-- 编号查询模式 -->
+    <div id="codeLoginMode">
+      <div class="hint">请输入学生的档案编号查看专属档案<br><span style="font-size:12px;color:#aaa">档案编号由学校统一发放，一人一码</span></div>
+      <div class="input-group">
+        <label>档案编号</label>
+        <input type="text" id="archiveCode" placeholder="请输入档案编号" maxlength="10" autocomplete="off">
+      </div>
+      <button class="btn-login" onclick="doLogin()">查 看 档 案</button>
+    </div>
+    <!-- 管理员登录模式 -->
+    <div id="adminLoginMode" style="display:none">
+      <div class="hint">管理员登录后可查看全部学生档案<br><span style="font-size:12px;color:#aaa">支持增删改、导入导出、统计分析</span></div>
+      <div class="input-group">
+        <label>管理密码</label>
+        <input type="password" id="adminPassword" placeholder="请输入管理密码" autocomplete="off" style="letter-spacing:2px">
+      </div>
+      <button class="btn-login" onclick="doAdminLogin()">管 理 登 录</button>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+    <div class="footer-text">© 2026 西安维多教育 · 一人一档 · 私人订制</div>
+  </div>
+</div>
+
+<!-- ===== 管理面板按钮 ===== -->
+<button class="admin-toggle" id="adminToggle" onclick="toggleAdmin()" style="display:none" title="管理面板">⚙️</button>
+<div class="admin-panel" id="adminPanel">
+  <button class="close-btn" onclick="toggleAdmin()">✕</button>
+  <h3>⚙️ 管理面板</h3>
+  
+  <div class="admin-section">
+    <h4>🖨️ 二维码管理</h4>
+    <div id="qrList"></div>
+  </div>
+  
+  <div class="admin-section">
+    <h4>📊 数据统计</h4>
+    <div class="stats-grid" id="adminStats"></div>
+  </div>
+  
+  <div class="admin-section">
+    <h4>💾 数据管理</h4>
+    <div class="admin-btn-row">
+      <button class="admin-btn primary" onclick="exportData()">📥 导出全部数据</button>
+      <button class="admin-btn" onclick="showImportModal()">📤 批量导入</button>
+      <button class="admin-btn" onclick="backupData()">💿 手动备份</button>
+    </div>
+  </div>
+  
+  <div class="admin-section">
+    <h4>⚠️ 沟通提醒</h4>
+    <div id="commWarnings"></div>
+  </div>
+</div>
+
+<!-- ===== 编辑弹窗 ===== -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- ===== 档案页面 ===== -->
+<div class="admin-page" id="profilePage" style="display:none">
+  <div class="top-bar">
+    <div class="logo">
+      <h1>私人订制档案</h1>
+      <span>PERSONALIZED PROFILE</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px">
+      <div class="school">西安维多教育 · 曲江校区</div>
+      <button class="btn-logout" onclick="doLogout()">退出查看</button>
+    </div>
+  </div>
+  <div class="container">
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="搜索姓名/编号/年级..." oninput="filterStudents()">
+          <button onclick="filterStudents()">搜索</button>
+        </div>
+      </div>
+      <div class="section-title">在读学员</div>
+      <div class="sidebar-list" id="sidebarList"></div>
+      <div class="sidebar-add" id="addStudentBtn" style="display:none">
+        <button onclick="showAddStudentModal()">＋ 新增学生</button>
+      </div>
+    </div>
+    <div class="main" id="mainContent">
+      <div class="welcome">
+        <h2>学生私人订制档案</h2>
+        <p>选择左侧学员查看专属档案</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE_URL = window.location.href.split('?')[0];
+const ADMIN_PASSWORD = 'weiduo2026';
+const COMM_WARN_DAYS = 14; // 超过14天未沟通则提醒
+let isAdmin = false;
+let currentStudent = null;
+let allStudents = [];
+
+// ===== 数据持久化（localStorage） =====
+function loadData(){
+  const saved = localStorage.getItem('weiduo_students');
+  if(saved){
+    try{ allStudents = JSON.parse(saved); return; } catch(e){}
+  }
+  // 首次加载默认数据
+  allStudents = [
+    {
+      id:"zhuqiyan", archiveCode:"WD20250901", name:"朱栖言", gender:"女",
+      school:"西安太白学校", grade:"高一", birth:"2010-03-03",
+      phone:"186****0690", parent:"刘杨", relation:"母亲",
+      style:"", personality:"敏感细腻型，善于观察他人情绪，需关注情绪状态",
+      enrollDate:"2025-09-01", remark:"",
+      diagnosis:{date:"2025-12-01",teacher:"数学陈老师",scores:{语文:51.3,数学:26,英语:30,物理:15.3,化学:32.6,生物:20},weakSubjects:["数学","物理"],weakPoints:"高中数学全科薄弱，尤其必修一函数、三角函数、正余弦定理"},
+      growth:[
+        {date:"2025-12-01",type:"入学摸底",scores:{语文:51.3,数学:26,英语:30,物理:15.3,化学:32.6,生物:20},performance:"需关注",comment:"全科基础薄弱，需系统性补强",parentFeedback:""},
+        {date:"2026-02-20",type:"期末考试",scores:{数学:27.3,英语:40,物理:30},performance:"需关注",comment:"物理、英语有进步",parentFeedback:"注意力不能长时间集中，课堂过于欢快会很难从之前的喜悦中回到学习状态"}
+      ],
+      plan:{period:"2026.04 - 2026.08",goalScore:"数学70分",shortTerm:"数学55分",midTerm:"数学65分",longTerm:"数学70分",weeklyHours:"2课时/周",status:"执行中",teacher:"孟子骞"},
+      communications:[{date:"2026-01-15",method:"面谈",mood:"满意",summary:"沟通现阶段学习状态和存在问题，以及后续授课方式及计划",demand:"希望提升基础知识点掌握能力，确保考试中基础分尽可能不丢分",person:"孟子骞"}],
+      honors:[{date:"2026-02-20",type:"综合进步",content:"英语提升10分，物理提升14.7分，数学提升1.3分",progress:"从入学诊断到期末，三科均有提升",teacher:"刘老师",parentFeedback:"刘杨（家长）"}]
+    },
+    {
+      id:"liushanglin", archiveCode:"WD20251008", name:"刘尚林", gender:"男",
+      school:"铁一曲江", grade:"初一", birth:"",
+      phone:"139****8558", parent:"王倩", relation:"母亲",
+      style:"混合型", personality:"竞争好胜",
+      enrollDate:"2025-10-08", remark:"",
+      diagnosis:{date:"2026-01-30",teacher:"孔毅超",scores:{语文:38,数学:56,英语:38},weakSubjects:["英语","语文"],weakPoints:"英语：基础词汇薄弱；语文：字词字音薄弱"},
+      growth:[
+        {date:"2026-01-30",type:"入学摸底",scores:{语文:38,数学:56,英语:38},performance:"一般",comment:"英语语文基础薄弱，数学中等",parentFeedback:""},
+        {date:"2026-04-21",type:"模拟考试",scores:{数学:67},performance:"良好",comment:"对于幂的运算部分理解进步",parentFeedback:"关注孩子期中考试状态"}
+      ],
+      plan:{period:"2026.04 - 2026.06",goalScore:"英语提高20分",shortTerm:"每日英语听写打卡",midTerm:"英语达到60分",longTerm:"暂无",weeklyHours:"4课时/周",status:"执行中",teacher:"孔毅超"},
+      communications:[{date:"2026-04-21",method:"微信沟通",mood:"一般",summary:"询问孩子作业完成情况",demand:"要求孩子完成作业并加练",person:"孔毅超"}],
+      honors:[{date:"2026-04-18",type:"坚持打卡",content:"连续英语听写一周打卡",progress:"U4单元词汇基本掌握",teacher:"孔毅超",parentFeedback:"继续坚持"}]
+    }
+  ];
+  saveData();
+}
+
+function saveData(){
+  localStorage.setItem('weiduo_students', JSON.stringify(allStudents));
+}
+
+function genId(){ return 'stu_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
+function genCode(){ 
+  const num = (allStudents.length + 1).toString().padStart(4,'0');
+  return 'WD2026' + num;
+}
+
+// ===== 登录逻辑 =====
+function switchLoginMode(mode){
+  document.querySelectorAll('.login-mode-tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('codeLoginMode').style.display = mode==='code'?'block':'none';
+  document.getElementById('adminLoginMode').style.display = mode==='admin'?'block':'none';
+  document.getElementById('errorMsg').textContent = '';
+}
+
+function doLogin(){
+  const code = document.getElementById('archiveCode').value.trim().toUpperCase();
+  const errEl = document.getElementById('errorMsg');
+  if(!code){ errEl.textContent='请输入档案编号'; return; }
+  const student = allStudents.find(s => s.archiveCode === code);
+  if(!student){ errEl.textContent='档案编号不存在，请核对后重试'; return; }
+  errEl.textContent='';
+  currentStudent = student;
+  isAdmin = false;
+  showProfilePage();
+}
+
+function doAdminLogin(){
+  const pwd = document.getElementById('adminPassword').value;
+  const errEl = document.getElementById('errorMsg');
+  if(pwd === ADMIN_PASSWORD){
+    isAdmin = true;
+    currentStudent = null;
+    errEl.textContent='';
+    showProfilePage();
+  } else {
+    errEl.textContent='密码错误';
+  }
+}
+
+function doLogout(){
+  currentStudent = null;
+  isAdmin = false;
+  document.getElementById('profilePage').style.display='none';
+  document.getElementById('adminToggle').style.display='none';
+  document.getElementById('loginPage').style.display='flex';
+  document.getElementById('archiveCode').value='';
+  document.getElementById('adminPassword').value='';
+  document.getElementById('errorMsg').textContent='';
+}
+
+// 回车登录
+document.addEventListener('keydown', function(e){
+  if(e.key==='Enter' && document.getElementById('loginPage').style.display!=='none'){
+    if(document.getElementById('codeLoginMode').style.display!=='none') doLogin();
+    else doAdminLogin();
+  }
+});
+
+// ===== URL参数处理 =====
+function checkUrlParams(){
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if(code){
+    document.getElementById('archiveCode').value = code;
+    doLogin();
+  }
+  if(params.get('admin') === '1'){
+    // 切换到管理员登录模式
+    document.querySelectorAll('.login-mode-tab')[1].click();
+  }
+}
+
+// ===== 页面切换 =====
+function showProfilePage(){
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('profilePage').style.display='block';
+  if(isAdmin){
+    document.getElementById('adminToggle').style.display='flex';
+    document.getElementById('addStudentBtn').style.display='block';
+    buildAdminPanel();
+  } else {
+    document.getElementById('adminToggle').style.display='none';
+    document.getElementById('addStudentBtn').style.display='none';
+  }
+  renderSidebar();
+  if(currentStudent){
+    const idx = allStudents.indexOf(currentStudent);
+    if(idx >= 0) showProfile(idx);
+  }
+}
+
+// ===== 管理面板 =====
+function toggleAdmin(){
+  const panel = document.getElementById('adminPanel');
+  panel.classList.toggle('show');
+}
+
+function buildAdminPanel(){
+  buildQRList();
+  buildStats();
+  buildCommWarnings();
+}
+
+function buildQRList(){
+  const container = document.getElementById('qrList');
+  let html = '';
+  allStudents.forEach(s => {
+    const url = BASE_URL + '?code=' + s.archiveCode;
+    try {
+      const qr = qrcode(0, 'M');
+      qr.addData(url);
+      qr.make();
+      const qrSvg = qr.createSvgTag({cellSize:3, margin:2});
+      html += `
+        <div class="qr-item">
+          <div class="qr-code">${qrSvg}</div>
+          <div class="qr-info">
+            <div class="name">${s.name}</div>
+            <div class="code">档案编号：${s.archiveCode}</div>
+            <div class="tip">家长扫码后输入编号即可查看</div>
+          </div>
+        </div>`;
+    } catch(e){
+      html += `
+        <div class="qr-item">
+          <div class="qr-info">
+            <div class="name">${s.name}</div>
+            <div class="code">档案编号：${s.archiveCode}</div>
+          </div>
+        </div>`;
+    }
+  });
+  container.innerHTML = html;
+}
+
+function buildStats(){
+  const container = document.getElementById('adminStats');
+  const total = allStudents.length;
+  const grades = {};
+  allStudents.forEach(s => { grades[s.grade] = (grades[s.grade]||0) + 1; });
+  const now = new Date();
+  let warnCount = 0;
+  allStudents.forEach(s => {
+    const lastComm = s.communications.length > 0 ? s.communications[s.communications.length-1] : null;
+    const days = lastComm ? Math.floor((now - new Date(lastComm.date)) / 86400000) : 999;
+    if(days > COMM_WARN_DAYS) warnCount++;
+  });
+  
+  let gradeHtml = Object.entries(grades).map(([g,c])=>`<div class="stat-box"><div class="stat-num">${c}</div><div class="stat-label">${g}</div></div>`).join('');
+  
+  container.innerHTML = `
+    <div class="stat-box"><div class="stat-num">${total}</div><div class="stat-label">在读学员</div></div>
+    ${gradeHtml}
+    <div class="stat-box"><div class="stat-num" style="color:var(--red)">${warnCount}</div><div class="stat-label">需跟进沟通</div></div>
+  `;
+}
+
+function buildCommWarnings(){
+  const container = document.getElementById('commWarnings');
+  const now = new Date();
+  let html = '';
+  allStudents.forEach(s => {
+    const lastComm = s.communications.length > 0 ? s.communications[s.communications.length-1] : null;
+    const days = lastComm ? Math.floor((now - new Date(lastComm.date)) / 86400000) : 999;
+    if(days > COMM_WARN_DAYS){
+      html += `<div style="font-size:12px;padding:6px 8px;background:#FFEBEE;border-radius:4px;margin-bottom:6px;color:var(--red)">
+        🔔 ${s.name}：${lastComm ? days+'天未沟通' : '从未沟通'}（上次：${lastComm ? lastComm.date : '无'}）
+      </div>`;
+    }
+  });
+  if(!html) html = '<div style="font-size:12px;color:var(--green)">✅ 所有学生近期均已沟通</div>';
+  container.innerHTML = html;
+}
+
+// ===== 搜索 =====
+function filterStudents(){
+  const kw = document.getElementById('searchInput').value.trim().toLowerCase();
+  renderSidebar(kw);
+}
+
+// ===== 侧边栏 =====
+function renderSidebar(keyword=''){
+  const list = document.getElementById('sidebarList');
+  list.innerHTML = '';
+  const kw = keyword.toLowerCase();
+  allStudents.forEach((s,i)=>{
+    if(kw && !s.name.toLowerCase().includes(kw) && !s.archiveCode.toLowerCase().includes(kw) && !s.grade.toLowerCase().includes(kw) && !s.school.toLowerCase().includes(kw)){
+      return;
+    }
+    const now = new Date();
+    const lastComm = s.communications.length > 0 ? s.communications[s.communications.length-1] : null;
+    const commDays = lastComm ? Math.floor((now - new Date(lastComm.date)) / 86400000) : 999;
+    
+    const card = document.createElement('div');
+    card.className = 'student-card';
+    card.dataset.index = i;
+    card.innerHTML = `
+      <div class="avatar-sm ${s.gender==='女'?'female':'male'}">${s.name[0]}</div>
+      <div class="info-wrap">
+        <div class="name">${s.name}</div>
+        <div class="meta">${s.school} · ${s.grade}</div>
+        ${commDays > COMM_WARN_DAYS ? `<div class="comm-warn">🔔 ${commDays>=999?'从未沟通':commDays+'天未沟通'}</div>` : `<div class="comm-ok">✓ 近期已沟通</div>`}
+      </div>
+    `;
+    card.onclick = ()=> showProfile(i);
+    list.appendChild(card);
+  });
+}
+
+// ===== 档案展示 =====
+function scoreClass(s){ if(s>=80) return 'high'; if(s>=50) return 'mid'; return 'low'; }
+function moodTag(mood){ const map={'非常满意':'green','满意':'blue','一般':'orange','有疑虑':'purple','不满意':'red'}; return `<span class="tag ${map[mood]||'blue'}">${mood}</span>`; }
+
+function showProfile(idx){
+  if(!isAdmin && currentStudent && allStudents[idx] !== currentStudent) return;
+  
+  document.querySelectorAll('.student-card').forEach((c,i)=>{
+    c.classList.toggle('active',i==idx);
+    if(!isAdmin){
+      c.style.opacity = (i==idx)?'1':'0.4';
+      c.style.pointerEvents = (i==idx)?'auto':'none';
+    }
+  });
+
+  const s = allStudents[idx];
+  const main = document.getElementById('mainContent');
+
+  main.innerHTML = `
+    <div class="profile-header">
+      <div class="avatar ${s.gender==='女'?'female':'male'}">${s.name[0]}</div>
+      <div class="details">
+        <h2>${s.name}的私人订制档案</h2>
+        <div class="meta">
+          <span class="archive-badge">🔐 档案编号：<span class="code">${s.archiveCode}</span></span>
+        </div>
+        <div class="meta" style="margin-top:8px">
+          <span>🏫 ${s.school}</span>
+          <span>📚 ${s.grade}</span>
+          <span>${s.gender==='女'?'♀ 女':'♂ 男'}</span>
+          <span>📅 入学：${s.enrollDate}</span>
+          <span>📞 ${s.phone}（${s.parent} / ${s.relation}）</span>
+        </div>
+      </div>
+      ${isAdmin ? `<button class="btn-edit" onclick="showEditModal(${idx})">✏️ 编辑</button>` : ''}
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(this,'tab-basic')">📋 基础档案</div>
+      <div class="tab" onclick="switchTab(this,'tab-diagnosis')">🔍 诊断档案</div>
+      <div class="tab" onclick="switchTab(this,'tab-growth')">📈 成长追踪</div>
+      <div class="tab" onclick="switchTab(this,'tab-plan')">🎯 学习规划</div>
+      <div class="tab" onclick="switchTab(this,'tab-comm')">💬 沟通日志</div>
+      <div class="tab" onclick="switchTab(this,'tab-honor')">🏆 荣誉档案</div>
+    </div>
+
+    <!-- 基础档案 -->
+    <div class="tab-content active" id="tab-basic">
+      <div class="card">
+        <h3><span class="icon">👤</span> 学生基本信息</h3>
+        <div class="info-grid">
+          <div class="info-item"><div class="label">姓名</div><div class="value">${s.name}</div></div>
+          <div class="info-item"><div class="label">性别</div><div class="value">${s.gender}</div></div>
+          <div class="info-item"><div class="label">出生日期</div><div class="value ${s.birth?'':'empty'}">${s.birth||'未填写'}</div></div>
+          <div class="info-item"><div class="label">就读学校</div><div class="value">${s.school}</div></div>
+          <div class="info-item"><div class="label">年级</div><div class="value">${s.grade}</div></div>
+          <div class="info-item"><div class="label">入学日期</div><div class="value">${s.enrollDate}</div></div>
+          <div class="info-item"><div class="label">档案编号</div><div class="value" style="font-family:monospace;color:var(--gold)">${s.archiveCode}</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">👨‍👩‍👧</span> 家庭联系信息</h3>
+        <div class="info-grid">
+          <div class="info-item"><div class="label">家长姓名</div><div class="value">${s.parent}</div></div>
+          <div class="info-item"><div class="label">关系</div><div class="value">${s.relation}</div></div>
+          <div class="info-item"><div class="label">联系电话</div><div class="value">${s.phone}</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🧠</span> 学习风格与性格</h3>
+        <div class="info-grid">
+          <div class="info-item"><div class="label">学习风格</div><div class="value">${s.style?`<span class="tag purple">${s.style}</span>`:'<span class="value empty">待评估</span>'}</div></div>
+          <div class="info-item"><div class="label">性格类型</div><div class="value">${s.personality||'未填写'}</div></div>
+        </div>
+      </div>
+      ${s.remark ? `<div class="card"><h3><span class="icon">📝</span> 备注</h3><div style="font-size:14px;line-height:1.8;color:var(--text)">${s.remark}</div></div>` : ''}
+    </div>
+
+    <!-- 诊断档案 -->
+    <div class="tab-content" id="tab-diagnosis">
+      <div class="card">
+        <h3><span class="icon">📊</span> 入学摸底测试 · ${s.diagnosis.date}</h3>
+        <div class="score-grid">
+          ${Object.entries(s.diagnosis.scores).map(([sub,sc])=>`
+            <div class="score-box">
+              <div class="subject">${sub}</div>
+              <div class="score ${scoreClass(sc)}">${sc}</div>
+              <div class="unit">分</div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="margin-top:16px;display:flex;gap:16px;flex-wrap:wrap">
+          <div>
+            <div class="label" style="font-size:11px;color:#999;margin-bottom:6px">综合得分率</div>
+            <span class="tag ${Object.values(s.diagnosis.scores).reduce((a,b)=>a+b,0)/Object.keys(s.diagnosis.scores).length>=60?'green':'red'}" style="font-size:14px">${(Object.values(s.diagnosis.scores).reduce((a,b)=>a+b,0)/Object.keys(s.diagnosis.scores).length).toFixed(1)} 分</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">🎯</span> 薄弱环节分析</h3>
+        <div style="margin-bottom:12px">
+          <div class="label" style="font-size:11px;color:#999;margin-bottom:8px">薄弱科目</div>
+          <div class="weakness-list">
+            ${s.diagnosis.weakSubjects.map(sub=>`<span class="tag red">${sub}</span>`).join('')}
+          </div>
+        </div>
+        <div>
+          <div class="label" style="font-size:11px;color:#999;margin-bottom:8px">薄弱知识点</div>
+          <div style="font-size:14px;color:var(--text);line-height:1.8;background:var(--light);padding:12px 16px;border-radius:6px">${s.diagnosis.weakPoints}</div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--sub)">诊断老师：${s.diagnosis.teacher}</div>
+      </div>
+    </div>
+
+    <!-- 成长追踪 -->
+    <div class="tab-content" id="tab-growth">
+      <div class="card">
+        <h3><span class="icon">📈</span> 成绩变化趋势</h3>
+        <div id="trendChart" style="padding:12px 0"></div>
+      </div>
+      <div class="card">
+        <h3><span class="icon">📝</span> 成长记录时间线</h3>
+        <div class="timeline">
+          ${s.growth.map(g=>`
+            <div class="timeline-item">
+              <div class="date">${g.date} · ${g.type}</div>
+              <div class="content">
+                <div class="title">${g.type} ${g.performance?`· <span class="tag ${g.performance==='优秀'?'green':g.performance==='良好'?'blue':g.performance==='一般'?'orange':'red'}" style="font-size:11px">${g.performance}</span>`:''}</div>
+                ${Object.keys(g.scores).length?`
+                <div class="score-grid" style="margin:8px 0">
+                  ${Object.entries(g.scores).map(([sub,sc])=>`
+                    <div class="score-box" style="padding:8px 4px">
+                      <div class="subject">${sub}</div>
+                      <div class="score ${scoreClass(sc)}" style="font-size:16px">${sc}</div>
+                    </div>
+                  `).join('')}
+                </div>`:''}
+                <div class="desc"><strong>教师评语：</strong>${g.comment}</div>
+                ${g.parentFeedback?`<div class="desc" style="margin-top:6px;color:var(--orange)"><strong>家长反馈：</strong>${g.parentFeedback}</div>`:''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        ${isAdmin ? `<div style="text-align:right;margin-top:16px"><button class="admin-btn primary" onclick="showAddGrowthModal(${idx})">＋ 添加成长记录</button></div>` : ''}
+      </div>
+    </div>
+
+    <!-- 学习规划 -->
+    <div class="tab-content" id="tab-plan">
+      <div class="card">
+        <h3><span class="icon">🎯</span> 私人学习规划</h3>
+        <div class="info-grid" style="margin-bottom:16px">
+          <div class="info-item"><div class="label">规划周期</div><div class="value">${s.plan.period}</div></div>
+          <div class="info-item"><div class="label">目标成绩</div><div class="value">${s.plan.goalScore}</div></div>
+          <div class="info-item"><div class="label">每周课时</div><div class="value">${s.plan.weeklyHours}</div></div>
+          <div class="info-item"><div class="label">执行状态</div><div class="value"><span class="tag ${s.plan.status==='执行中'?'green':'blue'}">${s.plan.status}</span></div></div>
+          <div class="info-item"><div class="label">规划老师</div><div class="value">${s.plan.teacher}</div></div>
+        </div>
+        <div class="label" style="font-size:11px;color:#999;margin-bottom:8px">目标阶梯</div>
+        <div class="goal-steps">
+          <div class="goal-step">
+            <div class="period">近期（1个月）</div>
+            <div class="target">${s.plan.shortTerm}</div>
+            <div class="desc">第一步</div>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="goal-step">
+            <div class="period">中期（1学期）</div>
+            <div class="target">${s.plan.midTerm}</div>
+            <div class="desc">第二步</div>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="goal-step">
+            <div class="period">长期（升学）</div>
+            <div class="target">${s.plan.longTerm}</div>
+            <div class="desc">最终目标</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 沟通日志 -->
+    <div class="tab-content" id="tab-comm">
+      <div class="card">
+        <h3><span class="icon">💬</span> 家校沟通记录</h3>
+        ${s.communications.map(c=>`
+          <div class="comm-card">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="date">${c.date}</div>
+              <div>${moodTag(c.mood)}</div>
+            </div>
+            <div class="method" style="margin-top:4px">📞 ${c.method} · 跟进人：${c.person}</div>
+            <div class="summary">${c.summary}</div>
+            <div class="demand">📌 家长诉求：${c.demand}</div>
+          </div>
+        `).join('')}
+        ${isAdmin ? `<div style="text-align:right;margin-top:16px"><button class="admin-btn primary" onclick="showAddCommModal(${idx})">＋ 添加沟通记录</button></div>` : ''}
+      </div>
+    </div>
+
+    <!-- 荣誉档案 -->
+    <div class="tab-content" id="tab-honor">
+      <div class="card">
+        <h3><span class="icon">🏆</span> 荣誉与进步</h3>
+        ${s.honors.map(h=>{
+          const icons = {'单科突破':'⭐','综合进步':'🚀','竞赛获奖':'🥇','考试优秀':'💯','坚持打卡':'🔥','态度进步':'💪','家长表扬':'❤️','推荐新生':'🌟'};
+          return `
+          <div class="honor-card">
+            <div class="honor-icon">${icons[h.type]||'🏆'}</div>
+            <div class="honor-info">
+              <div class="type">${h.type} · ${h.date}</div>
+              <div class="detail">${h.content}</div>
+              <div class="progress">${h.progress}</div>
+              <div style="font-size:12px;color:var(--sub);margin-top:4px">记录：${h.teacher} ${h.parentFeedback?`· 家长：${h.parentFeedback}`:''}</div>
+            </div>
+          </div>`;
+        }).join('')}
+        ${isAdmin ? `<div style="text-align:right;margin-top:16px"><button class="admin-btn primary" onclick="showAddHonorModal(${idx})">＋ 添加荣誉记录</button></div>` : ''}
+      </div>
+    </div>
+
+    <div class="footer">西安维多教育 · 曲江校区 · 学生私人订制档案管理系统 · 一人一档</div>
+  `;
+
+  renderTrendChart(s);
+}
+
+function renderTrendChart(s){
+  const container = document.getElementById('trendChart');
+  if(!container || s.growth.length < 2) {
+    if(container) container.innerHTML = '<div style="text-align:center;color:#999;padding:20px;font-size:13px">需要2次以上记录才能生成趋势图</div>';
+    return;
+  }
+  const allSubjects = new Set();
+  s.growth.forEach(g=> Object.keys(g.scores).forEach(k=> allSubjects.add(k)));
+  let html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html += '<tr style="background:var(--navy);color:#fff"><th style="padding:8px 12px">日期</th><th style="padding:8px 8px">类型</th>';
+  allSubjects.forEach(sub=> html+=`<th style="padding:8px 8px">${sub}</th>`);
+  html += '</tr>';
+  s.growth.forEach((g,i)=>{
+    const bg = i%2===0?'#fff':'var(--light)';
+    html += `<tr style="background:${bg}">`;
+    html += `<td style="padding:8px 12px;text-align:center">${g.date}</td>`;
+    html += `<td style="padding:8px 8px;text-align:center">${g.type}</td>`;
+    allSubjects.forEach(sub=>{
+      const v = g.scores[sub];
+      if(v!==undefined && v!==null){
+        html+=`<td style="padding:8px 8px;text-align:center;font-weight:600;color:${scoreClass(v)==='high'?'var(--green)':scoreClass(v)==='mid'?'var(--orange)':'var(--red)'}">${v}</td>`;
+      } else {
+        html+=`<td style="padding:8px 8px;text-align:center;color:#ccc">-</td>`;
+      }
+    });
+    html += '</tr>';
+  });
+  if(s.growth.length>=2){
+    const first = s.growth[0], last = s.growth[s.growth.length-1];
+    html += '<tr style="background:#FFFDE7;font-weight:600"><td colspan="2" style="padding:8px 12px;text-align:center">📈 变化</td>';
+    allSubjects.forEach(sub=>{
+      const fv = first.scores[sub], lv = last.scores[sub];
+      if(fv!==undefined && lv!==undefined){
+        const diff = (lv-fv).toFixed(1);
+        const color = diff>0?'var(--green)':diff<0?'var(--red)':'#999';
+        html+=`<td style="padding:8px 8px;text-align:center;color:${color}">${diff>0?'+':''}${diff}</td>`;
+      } else {
+        html+=`<td style="padding:8px 8px;text-align:center;color:#ccc">-</td>`;
+      }
+    });
+    html += '</tr>';
+  }
+  html += '</table></div>';
+  container.innerHTML = html;
+}
+
+function switchTab(el, tabId){
+  el.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+}
+
+// ===== 弹窗通用 =====
+function showModal(html){
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function hideModal(){
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2000);
+}
+
+// ===== 新增学生 =====
+function showAddStudentModal(){
+  showModal(`
+    <h3>➕ 新增学生</h3>
+    <div class="form-row">
+      <div class="form-group"><label>姓名 *</label><input id="m_name" placeholder="学生姓名"></div>
+      <div class="form-group"><label>性别 *</label><select id="m_gender"><option value="男">男</option><option value="女">女</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>就读学校</label><input id="m_school" placeholder="就读学校"></div>
+      <div class="form-group"><label>年级 *</label><input id="m_grade" placeholder="如：初一、高一"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>出生日期</label><input id="m_birth" type="date"></div>
+      <div class="form-group"><label>入学日期</label><input id="m_enroll" type="date"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>家长姓名</label><input id="m_parent" placeholder="家长姓名"></div>
+      <div class="form-group"><label>关系</label><input id="m_relation" placeholder="如：母亲、父亲"></div>
+    </div>
+    <div class="form-group"><label>联系电话</label><input id="m_phone" placeholder="联系电话"></div>
+    <div class="form-row">
+      <div class="form-group"><label>学习风格</label><input id="m_style" placeholder="如：视觉型、听觉型、混合型"></div>
+      <div class="form-group"><label>性格特点</label><input id="m_personality" placeholder="性格描述"></div>
+    </div>
+    <div class="form-group"><label>备注</label><textarea id="m_remark" placeholder="其他备注"></textarea></div>
+    <div class="btn-row">
+      <button class="admin-btn" onclick="hideModal()">取消</button>
+      <button class="admin-btn primary" onclick="addStudent()">确认添加</button>
+    </div>
+  `);
+}
+
+function addStudent(){
+  const name = document.getElementById('m_name').value.trim();
+  const grade = document.getElementById('m_grade').value.trim();
+  if(!name || !grade){ showToast('姓名和年级为必填项'); return; }
+  
+  const stu = {
+    id: genId(),
+    archiveCode: genCode(),
+    name: name,
+    gender: document.getElementById('m_gender').value,
+    school: document.getElementById('m_school').value.trim() || '未填写',
+    grade: grade,
+    birth: document.getElementById('m_birth').value,
+    phone: document.getElementById('m_phone').value.trim() || '未填写',
+    parent: document.getElementById('m_parent').value.trim() || '未填写',
+    relation: document.getElementById('m_relation').value.trim() || '未填写',
+    style: document.getElementById('m_style').value.trim(),
+    personality: document.getElementById('m_personality').value.trim(),
+    enrollDate: document.getElementById('m_enroll').value || new Date().toISOString().split('T')[0],
+    remark: document.getElementById('m_remark').value.trim(),
+    diagnosis: {date:'',teacher:'',scores:{},weakSubjects:[],weakPoints:''},
+    growth: [],
+    plan: {period:'',goalScore:'',shortTerm:'',midTerm:'',longTerm:'',weeklyHours:'',status:'待制定',teacher:''},
+    communications: [],
+    honors: []
+  };
+  allStudents.push(stu);
+  saveData();
+  hideModal();
+  showToast('✅ 学生添加成功：' + name);
+  renderSidebar();
+  buildAdminPanel();
+}
+
+// ===== 编辑学生 =====
+function showEditModal(idx){
+  const s = allStudents[idx];
+  showModal(`
+    <h3>✏️ 编辑学生 — ${s.name}</h3>
+    <div class="form-row">
+      <div class="form-group"><label>姓名</label><input id="e_name" value="${s.name}"></div>
+      <div class="form-group"><label>性别</label><select id="e_gender"><option value="男" ${s.gender==='男'?'selected':''}>男</option><option value="女" ${s.gender==='女'?'selected':''}>女</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>就读学校</label><input id="e_school" value="${s.school}"></div>
+      <div class="form-group"><label>年级</label><input id="e_grade" value="${s.grade}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>出生日期</label><input id="e_birth" type="date" value="${s.birth}"></div>
+      <div class="form-group"><label>入学日期</label><input id="e_enroll" type="date" value="${s.enrollDate}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>家长姓名</label><input id="e_parent" value="${s.parent}"></div>
+      <div class="form-group"><label>关系</label><input id="e_relation" value="${s.relation}"></div>
+    </div>
+    <div class="form-group"><label>联系电话</label><input id="e_phone" value="${s.phone}"></div>
+    <div class="form-row">
+      <div class="form-group"><label>学习风格</label><input id="e_style" value="${s.style}"></div>
+      <div class="form-group"><label>性格特点</label><input id="e_personality" value="${s.personality}"></div>
+    </div>
+    <div class="form-group"><label>备注</label><textarea id="e_remark">${s.remark||''}</textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>档案编号</label><input id="e_code" value="${s.archiveCode}" style="font-family:monospace;letter-spacing:2px"></div>
+      <div class="form-group"><label>入学诊断日期</label><input id="e_diag_date" type="date" value="${s.diagnosis.date}"></div>
+    </div>
+    <div class="form-group"><label>诊断老师</label><input id="e_diag_teacher" value="${s.diagnosis.teacher}"></div>
+    <div class="form-group"><label>薄弱知识点</label><textarea id="e_diag_weakpts">${s.diagnosis.weakPoints}</textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>规划周期</label><input id="e_plan_period" value="${s.plan.period}"></div>
+      <div class="form-group"><label>目标成绩</label><input id="e_plan_goal" value="${s.plan.goalScore}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>短期目标</label><input id="e_plan_short" value="${s.plan.shortTerm}"></div>
+      <div class="form-group"><label>中期目标</label><input id="e_plan_mid" value="${s.plan.midTerm}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>长期目标</label><input id="e_plan_long" value="${s.plan.longTerm}"></div>
+      <div class="form-group"><label>每周课时</label><input id="e_plan_hours" value="${s.plan.weeklyHours}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>执行状态</label><select id="e_plan_status"><option value="待制定" ${s.plan.status==='待制定'?'selected':''}>待制定</option><option value="执行中" ${s.plan.status==='执行中'?'selected':''}>执行中</option><option value="已完成" ${s.plan.status==='已完成'?'selected':''}>已完成</option></select></div>
+      <div class="form-group"><label>规划老师</label><input id="e_plan_teacher" value="${s.plan.teacher}"></div>
+    </div>
+    <div class="btn-row">
+      <button class="admin-btn danger" onclick="deleteStudent(${idx})">🗑️ 删除学生</button>
+      <button class="admin-btn" onclick="hideModal()">取消</button>
+      <button class="admin-btn primary" onclick="saveEdit(${idx})">保存修改</button>
+    </div>
+  `);
+}
+
+function saveEdit(idx){
+  const s = allStudents[idx];
+  s.name = document.getElementById('e_name').value.trim() || s.name;
+  s.gender = document.getElementById('e_gender').value;
+  s.school = document.getElementById('e_school').value.trim() || s.school;
+  s.grade = document.getElementById('e_grade').value.trim() || s.grade;
+  s.birth = document.getElementById('e_birth').value;
+  s.enrollDate = document.getElementById('e_enroll').value || s.enrollDate;
+  s.parent = document.getElementById('e_parent').value.trim() || s.parent;
+  s.relation = document.getElementById('e_relation').value.trim() || s.relation;
+  s.phone = document.getElementById('e_phone').value.trim() || s.phone;
+  s.style = document.getElementById('e_style').value.trim();
+  s.personality = document.getElementById('e_personality').value.trim();
+  s.remark = document.getElementById('e_remark').value.trim();
+  s.archiveCode = document.getElementById('e_code').value.trim() || s.archiveCode;
+  s.diagnosis.date = document.getElementById('e_diag_date').value;
+  s.diagnosis.teacher = document.getElementById('e_diag_teacher').value.trim();
+  s.diagnosis.weakPoints = document.getElementById('e_diag_weakpts').value.trim();
+  s.plan.period = document.getElementById('e_plan_period').value.trim();
+  s.plan.goalScore = document.getElementById('e_plan_goal').value.trim();
+  s.plan.shortTerm = document.getElementById('e_plan_short').value.trim();
+  s.plan.midTerm = document.getElementById('e_plan_mid').value.trim();
+  s.plan.longTerm = document.getElementById('e_plan_long').value.trim();
+  s.plan.weeklyHours = document.getElementById('e_plan_hours').value.trim();
+  s.plan.status = document.getElementById('e_plan_status').value;
+  s.plan.teacher = document.getElementById('e_plan_teacher').value.trim();
+  
+  saveData();
+  hideModal();
+  showToast('✅ 已保存修改');
+  renderSidebar();
+  buildAdminPanel();
+  showProfile(idx);
+}
+
+function deleteStudent(idx){
+  if(!confirm('确定删除学生「' + allStudents[idx].name + '」？此操作不可恢复！')) return;
+  allStudents.splice(idx, 1);
+  saveData();
+  hideModal();
+  showToast('已删除学生');
+  renderSidebar();
+  buildAdminPanel();
+  // 回到欢迎页
+  document.getElementById('mainContent').innerHTML = '<div class="welcome"><h2>学生私人订制档案</h2><p>选择左侧学员查看专属档案</p></div>';
+}
+
+// ===== 添加成长记录 =====
+function showAddGrowthModal(idx){
+  const s = allStudents[idx];
+  const subjects = Object.keys(s.diagnosis.scores).length > 0 ? Object.keys(s.diagnosis.scores) : ['语文','数学','英语'];
+  let scoreInputs = subjects.map(sub=>`
+    <div class="form-group" style="display:inline-block;width:80px;margin-right:8px">
+      <label>${sub}</label><input id="g_score_${sub}" type="number" step="0.1" placeholder="-" style="width:70px">
+    </div>
+  `).join('');
+  
+  showModal(`
+    <h3>📈 添加成长记录 — ${s.name}</h3>
+    <div class="form-row">
+      <div class="form-group"><label>日期</label><input id="g_date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-group"><label>考试类型</label><input id="g_type" placeholder="如：月考、期末、模拟考"></div>
+    </div>
+    <div class="form-group"><label>成绩（留空表示未考）</label><div style="display:flex;flex-wrap:wrap;gap:4px">${scoreInputs}</div></div>
+    <div class="form-row">
+      <div class="form-group"><label>表现等级</label><select id="g_perf"><option value="优秀">优秀</option><option value="良好">良好</option><option value="一般">一般</option><option value="需关注">需关注</option></select></div>
+    </div>
+    <div class="form-group"><label>教师评语</label><textarea id="g_comment" placeholder="本次考试表现评语"></textarea></div>
+    <div class="form-group"><label>家长反馈（选填）</label><textarea id="g_feedback" placeholder="家长的反馈意见"></textarea></div>
+    <div class="btn-row">
+      <button class="admin-btn" onclick="hideModal()">取消</button>
+      <button class="admin-btn primary" onclick="addGrowth(${idx})">添加记录</button>
+    </div>
+  `);
+}
+
+function addGrowth(idx){
+  const s = allStudents[idx];
+  const subjects = Object.keys(s.diagnosis.scores).length > 0 ? Object.keys(s.diagnosis.scores) : ['语文','数学','英语'];
+  const scores = {};
+  subjects.forEach(sub=>{
+    const v = document.getElementById('g_score_'+sub);
+    if(v && v.value !== '') scores[sub] = parseFloat(v.value);
+  });
+  
+  const record = {
+    date: document.getElementById('g_date').value,
+    type: document.getElementById('g_type').value.trim() || '考试',
+    scores: scores,
+    performance: document.getElementById('g_perf').value,
+    comment: document.getElementById('g_comment').value.trim(),
+    parentFeedback: document.getElementById('g_feedback').value.trim()
+  };
+  
+  s.growth.push(record);
+  // 按日期排序
+  s.growth.sort((a,b)=> new Date(a.date) - new Date(b.date));
+  saveData();
+  hideModal();
+  showToast('✅ 成长记录已添加');
+  showProfile(idx);
+}
+
+// ===== 添加沟通记录 =====
+function showAddCommModal(idx){
+  const s = allStudents[idx];
+  showModal(`
+    <h3>💬 添加沟通记录 — ${s.name}</h3>
+    <div class="form-row">
+      <div class="form-group"><label>日期</label><input id="c_date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-group"><label>沟通方式</label><select id="c_method"><option>微信沟通</option><option>面谈</option><option>电话沟通</option><option>家长到校</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>家长满意度</label><select id="c_mood"><option>满意</option><option>一般</option><option>非常满意</option><option>有疑虑</option><option>不满意</option></select></div>
+      <div class="form-group"><label>跟进人</label><input id="c_person" placeholder="沟通老师姓名"></div>
+    </div>
+    <div class="form-group"><label>沟通内容</label><textarea id="c_summary" placeholder="沟通的主要内容"></textarea></div>
+    <div class="form-group"><label>家长诉求</label><textarea id="c_demand" placeholder="家长提出的需求或意见"></textarea></div>
+    <div class="btn-row">
+      <button class="admin-btn" onclick="hideModal()">取消</button>
+      <button class="admin-btn primary" onclick="addComm(${idx})">添加记录</button>
+    </div>
+  `);
+}
+
+function addComm(idx){
+  const s = allStudents[idx];
+  const record = {
+    date: document.getElementById('c_date').value,
+    method: document.getElementById('c_method').value,
+    mood: document.getElementById('c_mood').value,
+    summary: document.getElementById('c_summary').value.trim(),
+    demand: document.getElementById('c_demand').value.trim(),
+    person: document.getElementById('c_person').value.trim()
+  };
+  s.communications.push(record);
+  s.communications.sort((a,b)=> new Date(b.date) - new Date(a.date));
+  saveData();
+  hideModal();
+  showToast('✅ 沟通记录已添加');
+  renderSidebar();
+  buildAdminPanel();
+  showProfile(idx);
+}
+
+// ===== 添加荣誉记录 =====
+function showAddHonorModal(idx){
+  showModal(`
+    <h3>🏆 添加荣誉记录</h3>
+    <div class="form-row">
+      <div class="form-group"><label>日期</label><input id="h_date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-group"><label>荣誉类型</label><select id="h_type"><option>单科突破</option><option>综合进步</option><option>竞赛获奖</option><option>考试优秀</option><option>坚持打卡</option><option>态度进步</option><option>家长表扬</option><option>推荐新生</option></select></div>
+    </div>
+    <div class="form-group"><label>荣誉内容</label><textarea id="h_content" placeholder="获奖/进步的具体内容"></textarea></div>
+    <div class="form-group"><label>进步描述</label><input id="h_progress" placeholder="如：从XX分提升到XX分"></div>
+    <div class="form-row">
+      <div class="form-group"><label>记录老师</label><input id="h_teacher" placeholder="记录老师姓名"></div>
+      <div class="form-group"><label>家长反馈</label><input id="h_pfeedback" placeholder="家长的反馈"></div>
+    </div>
+    <div class="btn-row">
+      <button class="admin-btn" onclick="hideModal()">取消</button>
+      <button class="admin-btn primary" onclick="addHonor(${idx})">添加记录</button>
+    </div>
+  `);
+}
+
+function addHonor(idx){
+  const s = allStudents[idx];
+  const record = {
+    date: document.getElementById('h_date').value,
+    type: document.getElementById('h_type').value,
+    content: document.getElementById('h_content').value.trim(),
+    progress: document.getElementById('h_progress').value.trim(),
+    teacher: document.getElementById('h_teacher').value.trim(),
+    parentFeedback: document.getElementById('h_pfeedback').value.trim()
+  };
+  s.honors.push(record);
+  saveData();
+  hideModal();
+  showToast('✅ 荣誉记录已添加');
+  showProfile(idx);
+}
+
+// ===== 数据导出 =====
+function exportData(){
+  const dataStr = JSON.stringify(allStudents, null, 2);
+  const blob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '维多教育_学生档案_' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ 数据已导出');
+}
+
+// ===== 数据备份 =====
+function backupData(){
+  const backup = {
+    version: '2.0',
+    date: new Date().toISOString(),
+    data: allStudents
+  };
+  const key = 'weiduo_backup_' + new Date().toISOString().split('T')[0];
+  localStorage.setItem(key, JSON.stringify(backup));
+  showToast('✅ 备份完成：' + key);
+  // 同时导出文件
+  exportData();
+}
+
+// ===== 批量导入 =====
+function showImportModal(){
+  showModal(`
+    <h3>📤 批量导入数据</h3>
+    <div class="import-area" onclick="document.getElementById('importFile').click()">
+      <div style="font-size:32px;margin-bottom:8px">📁</div>
+      <div style="font-size:14px;color:var(--sub)">点击选择 JSON 文件</div>
+      <div style="font-size:12px;color:#ccc;margin-top:4px">支持从系统导出的 JSON 格式</div>
+      <input type="file" id="importFile" accept=".json" onchange="handleImport(event)">
+    </div>
+    <div id="importPreview" style="margin-top:16px"></div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="admin-btn" onclick="hideModal()">取消</button>
+    </div>
+  `);
+}
+
+function handleImport(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = JSON.parse(e.target.result);
+      const students = Array.isArray(data) ? data : (data.data || []);
+      if(!students.length){ showToast('文件中没有学生数据'); return; }
+      
+      document.getElementById('importPreview').innerHTML = `
+        <div style="font-size:13px;color:var(--navy);margin-bottom:8px">📋 识别到 ${students.length} 名学生：</div>
+        <div style="max-height:200px;overflow-y:auto;font-size:12px">
+          ${students.map(s=>`<div style="padding:4px 0">${s.name} · ${s.grade} · ${s.archiveCode||'无编号'}</div>`).join('')}
+        </div>
+        <div style="margin-top:12px">
+          <label style="font-size:12px;color:var(--sub)"><input type="radio" name="importMode" value="merge" checked> 合并（保留现有数据，添加新学生）</label><br>
+          <label style="font-size:12px;color:var(--sub)"><input type="radio" name="importMode" value="replace"> 替换（清除现有数据，全部替换）</label>
+        </div>
+        <div style="margin-top:12px;text-align:right">
+          <button class="admin-btn primary" onclick="doImport()">确认导入</button>
+        </div>
+      `;
+      // 存储待导入数据
+      window._importData = students;
+    } catch(err){
+      showToast('文件格式错误，请选择有效的 JSON 文件');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function doImport(){
+  const students = window._importData;
+  if(!students) return;
+  const mode = document.querySelector('input[name="importMode"]:checked').value;
+  
+  if(mode === 'replace'){
+    if(!confirm('替换模式将清除所有现有数据，确定继续？')) return;
+    allStudents = students;
+  } else {
+    // 合并：按 archiveCode 去重
+    const existingCodes = new Set(allStudents.map(s=>s.archiveCode));
+    students.forEach(s=>{
+      if(!existingCodes.has(s.archiveCode)){
+        allStudents.push(s);
+      }
+    });
+  }
+  
+  saveData();
+  hideModal();
+  showToast('✅ 导入完成，共 ' + allStudents.length + ' 名学生');
+  renderSidebar();
+  buildAdminPanel();
+}
+
+// ===== 点击弹窗外部关闭 =====
+document.getElementById('modalOverlay').addEventListener('click', function(e){
+  if(e.target === this) hideModal();
+});
+
+// ===== 初始化 =====
+loadData();
+checkUrlParams();
+</script>
+</body>
+</html>
