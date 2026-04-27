@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>维多教育 · 学员成长画像系统</title>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--navy:#1A2B4E;--gold:#C8A951;--blue:#1565C0;--light:#F5F7FA;--border:#E0E0E0;--text:#333;--sub:#777;--green:#2E7D32;--orange:#E65100;--purple:#6A1B9A;--teal:#00838F;--red:#C62828}
@@ -355,6 +356,29 @@ const COMM_WARN_DAYS = 14; // 超过14天未沟通则提醒
 const SUBJECT_OPTIONS = ["语文","数学","英语","物理","化学","地理","生物"];
 const PRODUCT_OPTIONS = ["周内午托","周内晚辅","周末培优语文","周末培优数学","周末培优英语","周末培优物理","周末培优化学","周末培优地理","周末培优生物","全日制","其它"];
 const GRADE_ORDER = ["小一","小二","小三","小四","小五","小六","初一","初二","初三","高一","高二","高三","其他"];
+const COURSE_ACCOUNT_TYPES = {
+  oneOnOneRegular: "一对一正课",
+  oneOnTwoRegular: "一对二正课",
+  classRegular: "班课正课",
+  oneOnOneBonus: "一对一赠课",
+  classBonus: "班课赠课",
+  eveningCare: "周内晚辅",
+  lunchCare: "周内午托",
+  fullCare: "周内全托",
+  fullTime: "全日制",
+  other: "其它"
+};
+const COURSE_SUBJECT_OPTIONS = ["语文","数学","英语","物理","化学","地理","生物","晚辅","午托","全托","全日制","其它"];
+const COURSE_TYPE_ALIAS = {
+  "一对一":"oneOnOneRegular",
+  "一对二":"oneOnTwoRegular",
+  "班课":"classRegular",
+  "晚辅":"eveningCare",
+  "晚自习":"eveningCare",
+  "午托":"lunchCare",
+  "全托":"fullCare",
+  "全日制":"fullTime"
+};
 let isAdmin = false;
 let currentStudent = null;
 let allStudents = [];
@@ -390,6 +414,31 @@ function renderProductCheckboxes(prefix, selected=[]){
     ${PRODUCT_OPTIONS.map(p=>`<label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px"><input type="checkbox" id="${prefix}${p}" ${selectedSet.has(p)?'checked':''}>${p}</label>`).join('')}
   </div>`;
 }
+function mapCourseTypeToAccountType(courseType){
+  if(!courseType) return 'other';
+  const type = String(courseType).trim();
+  const found = Object.entries(COURSE_ACCOUNT_TYPES).find(([,label])=>label===type);
+  if(found) return found[0];
+  if(COURSE_TYPE_ALIAS[type]) return COURSE_TYPE_ALIAS[type];
+  return 'other';
+}
+function accountTypeLabel(key){ return COURSE_ACCOUNT_TYPES[key] || COURSE_ACCOUNT_TYPES.other; }
+function monthFromDate(dateStr){
+  if(!dateStr) return '';
+  const d = new Date(dateStr);
+  if(Number.isNaN(d.getTime())) return String(dateStr).slice(0,7);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function parseExcelDate(v){
+  if(v===undefined || v===null || v==='') return '';
+  if(typeof v === 'number'){
+    const date = XLSX.SSF.parse_date_code(v);
+    if(date) return `${date.y}-${String(date.m).padStart(2,'0')}-${String(date.d).padStart(2,'0')}`;
+  }
+  const d = new Date(v);
+  if(Number.isNaN(d.getTime())) return String(v).trim();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 function normalizeStudent(student){
   const s = Object.assign({
     id: genId(),
@@ -415,6 +464,7 @@ function normalizeStudent(student){
     familyAdvice: '',
     tags: [],
     products: [],
+    courseAccount: {snapshots:[], consumptions:[]},
     diagnosis: {},
     growth: [],
     plan: {},
@@ -424,6 +474,16 @@ function normalizeStudent(student){
 
   s.tags = safeArray(s.tags);
   s.products = safeArray(s.products);
+  s.courseAccount = s.courseAccount && typeof s.courseAccount==='object' ? s.courseAccount : {snapshots:[],consumptions:[]};
+  s.courseAccount.snapshots = safeArray(s.courseAccount.snapshots).map(it=>Object.assign({
+    id: genId(),
+    accountMonth:'', cutoffDate:'', courseType:COURSE_ACCOUNT_TYPES.other, accountType:'other', subjectOrProject:'其它',
+    startRegularHours:0,startBonusHours:0,hourUnitPrice:0,startTotalValue:0,renewedRegularHours:0,renewedBonusHours:0,
+    consumedHours:0,endRegularHours:0,endBonusHours:0,endTotalValue:0,monthlyPaidAmount:0,totalPaidAmount:0,note:''
+  }, it||{}));
+  s.courseAccount.consumptions = safeArray(s.courseAccount.consumptions).map(it=>Object.assign({
+    id: genId(), date:'', month:'', subject:'其它', courseType:COURSE_ACCOUNT_TYPES.other, accountType:'other', usedHours:0, note:''
+  }, it||{}));
   s.diagnosis = Object.assign({date:'',teacher:'',scores:{},weakSubjects:[],weakPoints:'',coreProblem:'',teachingAdvice:''}, s.diagnosis || {});
   s.diagnosis.scores = s.diagnosis.scores && typeof s.diagnosis.scores==='object' ? s.diagnosis.scores : {};
   s.diagnosis.weakSubjects = safeArray(s.diagnosis.weakSubjects);
@@ -738,6 +798,7 @@ function getFocusReasons(student){
   if(safeArray(student.diagnosis && student.diagnosis.weakSubjects).length) reasons.push('存在薄弱科目');
   if(hasScoreDecline(student)) reasons.push('成绩明显下降');
   if(isProfileIncomplete(student)) reasons.push('档案资料不完整');
+  if(getCourseRiskList(summarizeLatestSnapshot(student.courseAccount||{snapshots:[]})).length) reasons.push('课程账户余额不足');
   return reasons;
 }
 
@@ -875,6 +936,7 @@ function showProfile(idx){
       <div class="tab" onclick="switchTab(this,'tab-diagnosis')">学情诊断</div>
       <div class="tab" onclick="switchTab(this,'tab-growth')">成长记录</div>
       <div class="tab" onclick="switchTab(this,'tab-service')">服务记录</div>
+      ${isAdmin ? `<div class="tab" onclick="switchTab(this,'tab-course-account')">课程账户</div>` : ''}
     </div>
 
     <!-- 档案总览 -->
@@ -1017,11 +1079,13 @@ function showProfile(idx){
         ${isAdmin ? `<div style="text-align:right;margin-top:16px"><button class="admin-btn primary" onclick="showAddCommModal(${idx})">＋ 添加沟通记录</button></div>` : ''}
       </div>
     </div>
+    ${isAdmin ? `<div class="tab-content" id="tab-course-account"><div id="courseAccountPanel"></div></div>` : ''}
 
     <div class="footer">维多教育 · 学员成长画像系统</div>
   `;
 
   renderTrendChart(s);
+  if(isAdmin) renderCourseAccountTab(idx);
 }
 
 function renderTrendChart(s){
@@ -1084,6 +1148,140 @@ function renderTrendChart(s){
   container.innerHTML = `<div style="overflow-x:auto"><svg viewBox="0 0 ${chartWidth} ${chartHeight}" style="width:100%;min-width:620px;height:auto;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px">${grid}${axes}${lines}${xLabels}</svg></div><div style="margin-top:10px">${legends}</div>${table}`;
 }
 
+function summarizeLatestSnapshot(courseAccount){
+  const snapshots = safeArray(courseAccount.snapshots);
+  if(!snapshots.length) return null;
+  const latestDate = snapshots.map(s=>s.cutoffDate).sort().slice(-1)[0];
+  const current = snapshots.filter(s=>s.cutoffDate===latestDate);
+  const sum = (arr, field, filterFn)=>arr.filter(filterFn||(()=>true)).reduce((n,it)=>n+(parseFloat(it[field])||0),0);
+  const byType = key=>sum(current,'endRegularHours',it=>it.accountType===key);
+  const byBonus = key=>sum(current,'endBonusHours',it=>it.accountType===key);
+  return {
+    cutoffDate: latestDate,
+    oneOnOneRegular: byType('oneOnOneRegular'),
+    oneOnTwoRegular: byType('oneOnTwoRegular'),
+    classRegular: byType('classRegular'),
+    oneOnOneBonus: byBonus('oneOnOneBonus'),
+    classBonus: byBonus('classBonus'),
+    eveningCare: byType('eveningCare'),
+    lunchCare: byType('lunchCare'),
+    fullCare: byType('fullCare'),
+    fullTime: byType('fullTime'),
+    other: byType('other'),
+    endTotalValue: sum(current,'endTotalValue'),
+    monthlyPaidAmount: sum(current,'monthlyPaidAmount'),
+    totalPaidAmount: Math.max(...current.map(it=>parseFloat(it.totalPaidAmount)||0),0)
+  };
+}
+
+function getCourseRiskList(summary){
+  if(!summary) return [];
+  const rules = [
+    ['oneOnOneRegular',2,'节'],['oneOnTwoRegular',2,'节'],['classRegular',2,'节'],
+    ['oneOnOneBonus',1,'节'],['classBonus',1,'节'],['eveningCare',1,''],['lunchCare',1,''],['fullCare',1,''],['fullTime',1,'']
+  ];
+  return rules.map(([k,limit,unit])=>{
+    const val = summary[k] || 0;
+    if(val < 0) return `需核对：${accountTypeLabel(k)}余额为 ${val}`;
+    if(val <= limit) return `${accountTypeLabel(k)}余额不足：仅剩 ${val}${unit}`;
+    return null;
+  }).filter(Boolean);
+}
+
+function renderCourseAccountTab(idx){
+  const s = allStudents[idx];
+  const panel = document.getElementById('courseAccountPanel');
+  if(!panel || !s) return;
+  const account = s.courseAccount || {snapshots:[],consumptions:[]};
+  const summary = summarizeLatestSnapshot(account);
+  const riskList = getCourseRiskList(summary);
+  const months = [...new Set(safeArray(account.consumptions).map(c=>c.month).filter(Boolean))].sort();
+  const currentMonth = monthFromDate(new Date().toISOString().slice(0,10));
+  const selectedMonth = panel.dataset.selectedMonth || currentMonth;
+  panel.dataset.selectedMonth = selectedMonth;
+  const consByMonth = safeArray(account.consumptions).filter(c=>(c.month||monthFromDate(c.date))===selectedMonth);
+  const consumeTypeSum = Object.keys(COURSE_ACCOUNT_TYPES).reduce((acc,k)=>{acc[k]=0;return acc;},{});
+  consByMonth.forEach(c=>{const key=c.accountType||mapCourseTypeToAccountType(c.courseType); consumeTypeSum[key]=(consumeTypeSum[key]||0)+(parseFloat(c.usedHours)||0);});
+  const subjectSummaryMap = {};
+  consByMonth.forEach(c=>{
+    const subject = c.subject || '其它';
+    const key = c.accountType || mapCourseTypeToAccountType(c.courseType);
+    if(!subjectSummaryMap[subject]) subjectSummaryMap[subject] = {};
+    subjectSummaryMap[subject][key] = (subjectSummaryMap[subject][key]||0) + (parseFloat(c.usedHours)||0);
+  });
+
+  const snapshotRows = safeArray(account.snapshots).slice().sort((a,b)=> (b.accountMonth||'').localeCompare(a.accountMonth||'') || (b.cutoffDate||'').localeCompare(a.cutoffDate||''));
+  const consumptionRows = safeArray(account.consumptions).slice().sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+
+  panel.innerHTML = `
+    <div class="card">
+      <h3><span class="icon">📒</span> 课程账户说明</h3>
+      <div style="font-size:13px;line-height:1.8;color:var(--sub)">当前账户余额来自最近一次月底教务封账数据。<br>当月消课仅作过程记录，最终余额以月底核对后更新为准。</div>
+    </div>
+    <div class="card">
+      <h3><span class="icon">🧾</span> 最新封账余额总览 ${summary?`（截止：${summary.cutoffDate}）`:''}</h3>
+      ${summary ? `<div class="info-grid">
+        <div class="info-item"><div class="label">一对一正课剩余</div><div class="value">${summary.oneOnOneRegular} 节</div></div>
+        <div class="info-item"><div class="label">一对二正课剩余</div><div class="value">${summary.oneOnTwoRegular} 节</div></div>
+        <div class="info-item"><div class="label">班课正课剩余</div><div class="value">${summary.classRegular} 节</div></div>
+        <div class="info-item"><div class="label">一对一赠课剩余</div><div class="value">${summary.oneOnOneBonus} 节</div></div>
+        <div class="info-item"><div class="label">班课赠课剩余</div><div class="value">${summary.classBonus} 节</div></div>
+        <div class="info-item"><div class="label">周内晚辅剩余</div><div class="value">${summary.eveningCare}</div></div>
+        <div class="info-item"><div class="label">周内午托剩余</div><div class="value">${summary.lunchCare}</div></div>
+        <div class="info-item"><div class="label">周内全托剩余</div><div class="value">${summary.fullCare}</div></div>
+        <div class="info-item"><div class="label">全日制剩余</div><div class="value">${summary.fullTime}</div></div>
+        <div class="info-item"><div class="label">月底课时总价</div><div class="value">${summary.endTotalValue} 元</div></div>
+        <div class="info-item"><div class="label">本月缴费金额</div><div class="value">${summary.monthlyPaidAmount} 元</div></div>
+        <div class="info-item"><div class="label">累计缴费金额</div><div class="value">${summary.totalPaidAmount} 元</div></div>
+      </div>` : `<div style="font-size:13px;color:#999">暂无课程账户快照，请先录入或导入月度账户数据。</div>`}
+    </div>
+    <div class="card">
+      <h3><span class="icon">⚠️</span> 课时不足提醒</h3>
+      ${riskList.length ? riskList.map(r=>`<div style="font-size:13px;color:var(--red);margin-bottom:6px">${r}</div>`).join('') : '<div style="font-size:13px;color:var(--green)">暂无课时不足提醒</div>'}
+    </div>
+    <div class="card">
+      <h3><span class="icon">📆</span> 指定月份消课汇总</h3>
+      <div style="margin-bottom:10px">查看消课月份：
+        <input type="month" id="consMonthSelect" value="${selectedMonth}" onchange="changeConsumptionMonth(${idx}, this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px">
+      </div>
+      <div class="info-grid">
+        ${Object.keys(COURSE_ACCOUNT_TYPES).map(k=>`<div class="info-item"><div class="label">${accountTypeLabel(k)}消耗</div><div class="value">${consumeTypeSum[k]||0}${k.includes('Care')||k==='fullTime'?'':' 节'}</div></div>`).join('')}
+      </div>
+      <div style="margin-top:12px">${Object.keys(subjectSummaryMap).length ? Object.entries(subjectSummaryMap).map(([subject,obj])=>`<div style="font-size:12px;color:var(--sub);margin-bottom:6px">${subject}：${Object.entries(obj).map(([k,v])=>`${accountTypeLabel(k)} ${v}${k.includes('Care')||k==='fullTime'?'':'节'}`).join('，')}</div>`).join('') : '<div style="font-size:13px;color:#999">该月份暂无消课记录</div>'}</div>
+    </div>
+    <div class="card">
+      <h3><span class="icon">📊</span> 月度课程账户台账</h3>
+      <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="admin-btn primary" onclick="showSnapshotModal(${idx})">新增快照</button>
+        <button class="admin-btn" onclick="downloadSnapshotTemplate()">下载快照Excel模板</button>
+        <button class="admin-btn" onclick="showSnapshotImportModal(${idx})">导入快照Excel</button>
+      </div>
+      <div style="overflow-x:auto"><table style="min-width:1400px;width:100%;border-collapse:collapse;font-size:12px">
+        <tr style="background:var(--navy);color:#fff"><th>账户月份</th><th>截止日期</th><th>课程类型</th><th>科目/项目</th><th>月初正价课时</th><th>月初赠送课时</th><th>课时单价</th><th>月初课时总价</th><th>本月续报正课</th><th>本月新增赠课</th><th>本月消课</th><th>月底正价课时</th><th>月底赠送课时</th><th>月底课时总价</th><th>本月缴费</th><th>累计缴费</th><th>备注</th><th>操作</th></tr>
+        ${snapshotRows.map(row=>`<tr style="background:#fff"><td>${row.accountMonth||''}</td><td>${row.cutoffDate||''}</td><td>${row.courseType||''}</td><td>${row.subjectOrProject||''}</td><td>${row.startRegularHours||0}</td><td>${row.startBonusHours||0}</td><td>${row.hourUnitPrice||0}</td><td>${row.startTotalValue||0}</td><td>${row.renewedRegularHours||0}</td><td>${row.renewedBonusHours||0}</td><td>${row.consumedHours||0}</td><td style="color:${(parseFloat(row.endRegularHours)||0)<0?'var(--red)':'inherit'}">${row.endRegularHours||0}</td><td style="color:${(parseFloat(row.endBonusHours)||0)<0?'var(--red)':'inherit'}">${row.endBonusHours||0}</td><td>${row.endTotalValue||0}</td><td>${row.monthlyPaidAmount||0}</td><td>${row.totalPaidAmount||0}</td><td>${row.note||''}</td><td><button class="admin-btn" onclick="showSnapshotModal(${idx},'${row.id}')">编辑</button> <button class="admin-btn danger" onclick="deleteSnapshot(${idx},'${row.id}')">删除</button></td></tr>`).join('')}
+      </table></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon">🧮</span> 消课明细</h3>
+      <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="admin-btn primary" onclick="showConsumptionModal(${idx})">新增消课</button>
+        <button class="admin-btn" onclick="downloadConsumptionTemplate()">下载消课Excel模板</button>
+        <button class="admin-btn" onclick="showConsumptionImportModal(${idx})">导入消课Excel</button>
+      </div>
+      <div style="overflow-x:auto"><table style="min-width:900px;width:100%;border-collapse:collapse;font-size:12px">
+        <tr style="background:var(--navy);color:#fff"><th>日期</th><th>月份</th><th>科目</th><th>课程类型</th><th>消耗课时</th><th>备注</th><th>操作</th></tr>
+        ${consumptionRows.map(row=>`<tr style="background:#fff"><td>${row.date||''}</td><td>${row.month||''}</td><td>${row.subject||''}</td><td>${row.courseType||''}</td><td style="color:${(parseFloat(row.usedHours)||0)<0?'var(--red)':'inherit'}">${row.usedHours||0}</td><td>${row.note||''}</td><td><button class="admin-btn" onclick="showConsumptionModal(${idx},'${row.id}')">编辑</button> <button class="admin-btn danger" onclick="deleteConsumption(${idx},'${row.id}')">删除</button></td></tr>`).join('')}
+      </table></div>
+    </div>
+  `;
+}
+
+function changeConsumptionMonth(idx, month){
+  const panel = document.getElementById('courseAccountPanel');
+  if(panel) panel.dataset.selectedMonth = month;
+  renderCourseAccountTab(idx);
+}
+
 function switchTab(el, tabId){
   el.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
@@ -1104,6 +1302,198 @@ function showToast(msg){
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 2000);
+}
+
+function showSnapshotModal(studentIdx, snapshotId=''){
+  const s = allStudents[studentIdx];
+  const item = snapshotId ? safeArray(s.courseAccount.snapshots).find(x=>x.id===snapshotId) : null;
+  const v = item || {id:'',accountMonth:'',cutoffDate:'',courseType:COURSE_ACCOUNT_TYPES.other,accountType:'other',subjectOrProject:'其它',startRegularHours:0,startBonusHours:0,hourUnitPrice:0,startTotalValue:0,renewedRegularHours:0,renewedBonusHours:0,consumedHours:0,endRegularHours:0,endBonusHours:0,endTotalValue:0,monthlyPaidAmount:0,totalPaidAmount:0,note:''};
+  showModal(`<h3>${snapshotId?'编辑':'新增'}课程账户快照</h3>
+    <div class="form-row"><div class="form-group"><label>账户月份</label><input id="sa_month" type="month" value="${v.accountMonth||''}"></div><div class="form-group"><label>截止日期</label><input id="sa_cutoff" type="date" value="${v.cutoffDate||''}"></div></div>
+    <div class="form-row"><div class="form-group"><label>课程类型</label><select id="sa_type">${Object.entries(COURSE_ACCOUNT_TYPES).map(([k,l])=>`<option value="${k}" ${v.accountType===k?'selected':''}>${l}</option>`).join('')}</select></div><div class="form-group"><label>科目/项目</label><select id="sa_subject">${COURSE_SUBJECT_OPTIONS.map(o=>`<option ${v.subjectOrProject===o?'selected':''}>${o}</option>`).join('')}</select></div></div>
+    <div class="form-row"><div class="form-group"><label>月初正价课时</label><input id="sa_sr" type="number" step="0.1" value="${v.startRegularHours}"></div><div class="form-group"><label>月初赠送课时</label><input id="sa_sb" type="number" step="0.1" value="${v.startBonusHours}"></div></div>
+    <div class="form-row"><div class="form-group"><label>课时单价</label><input id="sa_price" type="number" step="0.01" value="${v.hourUnitPrice}"></div><div class="form-group"><label>月初课时总价</label><input id="sa_stv" type="number" step="0.01" value="${v.startTotalValue}"></div></div>
+    <div class="form-row"><div class="form-group"><label>本月续报正课</label><input id="sa_rr" type="number" step="0.1" value="${v.renewedRegularHours}"></div><div class="form-group"><label>本月新增赠课</label><input id="sa_rb" type="number" step="0.1" value="${v.renewedBonusHours}"></div></div>
+    <div class="form-row"><div class="form-group"><label>本月消课</label><input id="sa_used" type="number" step="0.1" value="${v.consumedHours}"></div><div class="form-group"><label>月底正价课时</label><input id="sa_er" type="number" step="0.1" value="${v.endRegularHours}"></div></div>
+    <div class="form-row"><div class="form-group"><label>月底赠送课时</label><input id="sa_eb" type="number" step="0.1" value="${v.endBonusHours}"></div><div class="form-group"><label>月底课时总价</label><input id="sa_etv" type="number" step="0.01" value="${v.endTotalValue}"></div></div>
+    <div class="form-row"><div class="form-group"><label>本月缴费金额</label><input id="sa_mp" type="number" step="0.01" value="${v.monthlyPaidAmount}"></div><div class="form-group"><label>累计缴费金额</label><input id="sa_tp" type="number" step="0.01" value="${v.totalPaidAmount}"></div></div>
+    <div class="form-group"><label>备注</label><textarea id="sa_note">${v.note||''}</textarea></div>
+    <div class="btn-row"><button class="admin-btn" onclick="hideModal()">取消</button><button class="admin-btn primary" onclick="saveSnapshot(${studentIdx},'${snapshotId}')">保存</button></div>`);
+}
+function numValue(id){ const v=parseFloat(document.getElementById(id).value); return Number.isNaN(v)?0:v; }
+function saveSnapshot(studentIdx, snapshotId=''){
+  const s = allStudents[studentIdx];
+  const accountType = document.getElementById('sa_type').value;
+  const item = {
+    id: snapshotId || genId(),
+    accountMonth: document.getElementById('sa_month').value,
+    cutoffDate: document.getElementById('sa_cutoff').value,
+    courseType: accountTypeLabel(accountType),
+    accountType,
+    subjectOrProject: document.getElementById('sa_subject').value || '其它',
+    startRegularHours:numValue('sa_sr'),startBonusHours:numValue('sa_sb'),hourUnitPrice:numValue('sa_price'),startTotalValue:numValue('sa_stv'),
+    renewedRegularHours:numValue('sa_rr'),renewedBonusHours:numValue('sa_rb'),consumedHours:numValue('sa_used'),
+    endRegularHours:numValue('sa_er'),endBonusHours:numValue('sa_eb'),endTotalValue:numValue('sa_etv'),
+    monthlyPaidAmount:numValue('sa_mp'),totalPaidAmount:numValue('sa_tp'),note:document.getElementById('sa_note').value.trim()
+  };
+  const list = s.courseAccount.snapshots;
+  const idx = list.findIndex(x=>x.id===item.id);
+  if(idx>=0) list[idx] = item; else list.push(item);
+  saveData(); hideModal(); renderCourseAccountTab(studentIdx); showToast('课程账户快照已保存');
+}
+function deleteSnapshot(studentIdx, id){
+  if(!confirm('确定删除该课程账户快照？')) return;
+  if(!confirm('请再次确认删除，删除后不可恢复。')) return;
+  const list = allStudents[studentIdx].courseAccount.snapshots;
+  allStudents[studentIdx].courseAccount.snapshots = list.filter(x=>x.id!==id);
+  saveData(); renderCourseAccountTab(studentIdx); showToast('已删除快照');
+}
+
+function showConsumptionModal(studentIdx, consumptionId=''){
+  const s = allStudents[studentIdx];
+  const item = consumptionId ? safeArray(s.courseAccount.consumptions).find(x=>x.id===consumptionId) : null;
+  const v = item || {id:'',date:'',month:'',subject:'其它',courseType:COURSE_ACCOUNT_TYPES.other,accountType:'other',usedHours:0,note:''};
+  showModal(`<h3>${consumptionId?'编辑':'新增'}消课记录</h3>
+    <div class="form-row"><div class="form-group"><label>日期</label><input id="ca_date" type="date" value="${v.date||''}"></div><div class="form-group"><label>月份</label><input id="ca_month" type="month" value="${v.month||''}" placeholder="YYYY-MM"></div></div>
+    <div class="form-row"><div class="form-group"><label>科目</label><select id="ca_subject">${COURSE_SUBJECT_OPTIONS.map(o=>`<option ${v.subject===o?'selected':''}>${o}</option>`).join('')}</select></div><div class="form-group"><label>课程类型</label><select id="ca_type">${Object.entries(COURSE_ACCOUNT_TYPES).map(([k,l])=>`<option value="${k}" ${v.accountType===k?'selected':''}>${l}</option>`).join('')}</select></div></div>
+    <div class="form-row"><div class="form-group"><label>消耗课时</label><input id="ca_used" type="number" step="0.1" value="${v.usedHours||0}"></div></div>
+    <div class="form-group"><label>备注</label><textarea id="ca_note">${v.note||''}</textarea></div>
+    <div class="btn-row"><button class="admin-btn" onclick="hideModal()">取消</button><button class="admin-btn primary" onclick="saveConsumption(${studentIdx},'${consumptionId}')">保存</button></div>`);
+}
+function saveConsumption(studentIdx, consumptionId=''){
+  const date = document.getElementById('ca_date').value;
+  const monthInput = document.getElementById('ca_month').value;
+  const accountType = document.getElementById('ca_type').value;
+  const item = {
+    id: consumptionId || genId(),
+    date,
+    month: monthInput || monthFromDate(date),
+    subject: document.getElementById('ca_subject').value || '其它',
+    courseType: accountTypeLabel(accountType),
+    accountType,
+    usedHours: numValue('ca_used'),
+    note: document.getElementById('ca_note').value.trim()
+  };
+  const list = allStudents[studentIdx].courseAccount.consumptions;
+  const idx = list.findIndex(x=>x.id===item.id);
+  if(idx>=0) list[idx]=item; else list.push(item);
+  saveData(); hideModal(); renderCourseAccountTab(studentIdx); showToast('消课记录已保存');
+}
+function deleteConsumption(studentIdx, id){
+  if(!confirm('确定删除该消课记录？')) return;
+  if(!confirm('请再次确认删除，删除后不可恢复。')) return;
+  allStudents[studentIdx].courseAccount.consumptions = allStudents[studentIdx].courseAccount.consumptions.filter(x=>x.id!==id);
+  saveData(); renderCourseAccountTab(studentIdx); showToast('已删除消课记录');
+}
+
+function downloadSnapshotTemplate(){
+  const headers = ["学生档案编号","学生姓名","年级","账户月份","截止日期","课程类型","科目/项目","月初正价课时","月初赠送课时","课时单价","月初课时总价","本月续报正课","本月新增赠课","本月消课课时","月底正价课时","月底赠送课时","月底课时总价","本月缴费金额","累计缴费金额","备注"];
+  const ws = XLSX.utils.aoa_to_sheet([headers]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "快照模板");
+  XLSX.writeFile(wb, "维多教育_课程账户快照模板.xlsx");
+}
+function downloadConsumptionTemplate(){
+  const headers = ["学生档案编号","学生姓名","日期","月份","科目","课程类型","消耗课时","备注"];
+  const ws = XLSX.utils.aoa_to_sheet([headers]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "消课模板");
+  XLSX.writeFile(wb, "维多教育_消课记录模板.xlsx");
+}
+
+function showSnapshotImportModal(studentIdx){
+  showModal(`<h3>导入课程账户快照 Excel</h3>
+    <div class="import-area" onclick="document.getElementById('snapshotImportFile').click()"><div style="font-size:14px;color:var(--sub)">点击选择 Excel 文件</div><input type="file" id="snapshotImportFile" accept=\".xlsx,.xls\" onchange=\"importSnapshotExcel(${studentIdx}, event)\"></div>
+    <div id="snapshotImportResult" style="margin-top:12px;font-size:12px;color:var(--sub)"></div>
+    <div class="btn-row"><button class="admin-btn" onclick="hideModal()">关闭</button></div>`);
+}
+function importSnapshotExcel(studentIdx, event){
+  const file = event.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const wb = XLSX.read(e.target.result, {type:'array'});
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+    const failures = []; let success=0, covered=0;
+    rows.forEach((r,ri)=>{
+      const code = String(r["学生档案编号"]||'').trim();
+      if(!code){ failures.push(`第${ri+2}行：缺少学生档案编号`); return; }
+      const stu = allStudents.find(x=>x.archiveCode===code);
+      if(!stu){ failures.push(`第${ri+2}行：未找到档案编号 ${code}`); return; }
+      const courseTypeRaw = String(r["课程类型"]||'').trim();
+      const accountType = mapCourseTypeToAccountType(courseTypeRaw);
+      const item = normalizeStudent({courseAccount:{snapshots:[{
+        id: genId(),
+        accountMonth: String(r["账户月份"]||'').trim(),
+        cutoffDate: parseExcelDate(r["截止日期"]),
+        courseType: accountTypeLabel(accountType),
+        accountType,
+        subjectOrProject: String(r["科目/项目"]||'').trim() || '其它',
+        startRegularHours: parseFloat(r["月初正价课时"])||0,
+        startBonusHours: parseFloat(r["月初赠送课时"])||0,
+        hourUnitPrice: parseFloat(r["课时单价"])||0,
+        startTotalValue: parseFloat(r["月初课时总价"])||0,
+        renewedRegularHours: parseFloat(r["本月续报正课"])||0,
+        renewedBonusHours: parseFloat(r["本月新增赠课"])||0,
+        consumedHours: parseFloat(r["本月消课课时"])||0,
+        endRegularHours: parseFloat(r["月底正价课时"])||0,
+        endBonusHours: parseFloat(r["月底赠送课时"])||0,
+        endTotalValue: parseFloat(r["月底课时总价"])||0,
+        monthlyPaidAmount: parseFloat(r["本月缴费金额"])||0,
+        totalPaidAmount: parseFloat(r["累计缴费金额"])||0,
+        note: String(r["备注"]||'').trim()
+      }]}}).courseAccount.snapshots[0];
+      const list = stu.courseAccount.snapshots;
+      const ex = list.findIndex(x=>x.accountMonth===item.accountMonth && x.accountType===item.accountType && x.subjectOrProject===item.subjectOrProject);
+      if(ex>=0){ list[ex]=item; covered++; } else { list.push(item); success++; }
+    });
+    saveData(); renderCourseAccountTab(studentIdx);
+    document.getElementById('snapshotImportResult').innerHTML = `成功导入 ${success} 条，覆盖 ${covered} 条，失败 ${failures.length} 条<br>${failures.map(x=>`<div style='color:var(--red)'>${x}</div>`).join('')}`;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showConsumptionImportModal(studentIdx){
+  showModal(`<h3>导入消课记录 Excel</h3>
+    <div class="import-area" onclick="document.getElementById('consImportFile').click()"><div style="font-size:14px;color:var(--sub)">点击选择 Excel 文件</div><input type="file" id="consImportFile" accept=\".xlsx,.xls\" onchange=\"importConsumptionExcel(${studentIdx}, event)\"></div>
+    <div id="consImportResult" style="margin-top:12px;font-size:12px;color:var(--sub)"></div>
+    <div class="btn-row"><button class="admin-btn" onclick="hideModal()">关闭</button></div>`);
+}
+function importConsumptionExcel(studentIdx, event){
+  const file = event.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const wb = XLSX.read(e.target.result, {type:'array'});
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval:''});
+    const failures=[]; let success=0, skipped=0;
+    const prepared = [];
+    rows.forEach((r,ri)=>{
+      const code = String(r["学生档案编号"]||'').trim();
+      if(!code){ failures.push(`第${ri+2}行：缺少学生档案编号`); return; }
+      const stu = allStudents.find(x=>x.archiveCode===code);
+      if(!stu){ failures.push(`第${ri+2}行：未找到档案编号 ${code}`); return; }
+      const date = parseExcelDate(r["日期"]);
+      if(!date){ failures.push(`第${ri+2}行：日期为空`); return; }
+      const courseTypeRaw = String(r["课程类型"]||'').trim();
+      const accountType = mapCourseTypeToAccountType(courseTypeRaw);
+      prepared.push({stu,date,month:String(r["月份"]||'').trim()||monthFromDate(date),subject:String(r["科目"]||'').trim()||'其它',courseType:accountTypeLabel(accountType),accountType,usedHours:parseFloat(r["消耗课时"])||0,note:String(r["备注"]||'').trim()});
+    });
+    let duplicates = 0;
+    prepared.forEach(it=>{
+      const same = it.stu.courseAccount.consumptions.some(c=>c.date===it.date && (c.subject||'')===it.subject && (c.courseType||'')===it.courseType && Number(c.usedHours||0)===Number(it.usedHours||0) && (c.note||'')===it.note);
+      if(same) duplicates++;
+    });
+    let importDup = true;
+    if(duplicates>0) importDup = confirm(`检测到 ${duplicates} 条疑似重复消课记录。确定“仍然导入”吗？\n取消将跳过重复。`);
+    prepared.forEach(it=>{
+      const same = it.stu.courseAccount.consumptions.some(c=>c.date===it.date && (c.subject||'')===it.subject && (c.courseType||'')===it.courseType && Number(c.usedHours||0)===Number(it.usedHours||0) && (c.note||'')===it.note);
+      if(same && !importDup){ skipped++; return; }
+      it.stu.courseAccount.consumptions.push({id:genId(),date:it.date,month:it.month,subject:it.subject,courseType:it.courseType,accountType:it.accountType,usedHours:it.usedHours,note:it.note});
+      success++;
+    });
+    saveData(); renderCourseAccountTab(studentIdx);
+    document.getElementById('consImportResult').innerHTML = `成功导入 ${success} 条，跳过重复 ${skipped} 条，失败 ${failures.length} 条<br>${failures.map(x=>`<div style='color:var(--red)'>${x}</div>`).join('')}`;
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // ===== 新增学生 =====
