@@ -208,7 +208,7 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
 .container{flex-direction:column}
 .sidebar{width:100%;max-height:200px;display:flex;flex-direction:column}
 .sidebar-list{display:flex;overflow-x:auto;overflow-y:hidden}
-.sidebar .section-title{display:none}
+.sidebar .section-title{display:block;padding:8px 12px 4px;font-size:10px}
 .sidebar .student-card{border-left:none;border-bottom:3px solid transparent;white-space:nowrap}
 .sidebar .student-card.active{border-bottom-color:var(--gold)}
 .main{padding:16px}
@@ -352,6 +352,9 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
 const BASE_URL = window.location.href.split('?')[0];
 const ADMIN_PASSWORD = 'weiduo2026';
 const COMM_WARN_DAYS = 14; // 超过14天未沟通则提醒
+const SUBJECT_OPTIONS = ["语文","数学","英语","物理","化学","地理","生物"];
+const PRODUCT_OPTIONS = ["周内午托","周内晚辅","周末培优语文","周末培优数学","周末培优英语","周末培优物理","周末培优化学","周末培优地理","周末培优生物","全日制","其它"];
+const GRADE_ORDER = ["小一","小二","小三","小四","小五","小六","初一","初二","初三","高一","高二","高三","其他"];
 let isAdmin = false;
 let currentStudent = null;
 let allStudents = [];
@@ -367,6 +370,26 @@ function maskPhone(phone){
   return raw.length > 5 ? raw.slice(0,3) + '****' + raw.slice(-2) : raw;
 }
 function safeArray(v){ return Array.isArray(v) ? v : []; }
+function getGradeGroup(grade){ return GRADE_ORDER.includes(grade) ? grade : '其他'; }
+function sortGradesByOrder(grades){
+  const idx = g => {
+    const i = GRADE_ORDER.indexOf(g);
+    return i === -1 ? GRADE_ORDER.indexOf('其他') : i;
+  };
+  return grades.slice().sort((a,b)=>idx(a)-idx(b));
+}
+function getSelectedProducts(prefix){
+  return PRODUCT_OPTIONS.filter(p=>{
+    const el = document.getElementById(prefix + p);
+    return el && el.checked;
+  });
+}
+function renderProductCheckboxes(prefix, selected=[]){
+  const selectedSet = new Set(safeArray(selected));
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px">
+    ${PRODUCT_OPTIONS.map(p=>`<label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px"><input type="checkbox" id="${prefix}${p}" ${selectedSet.has(p)?'checked':''}>${p}</label>`).join('')}
+  </div>`;
+}
 function normalizeStudent(student){
   const s = Object.assign({
     id: genId(),
@@ -391,6 +414,7 @@ function normalizeStudent(student){
     nextPlan: '',
     familyAdvice: '',
     tags: [],
+    products: [],
     diagnosis: {},
     growth: [],
     plan: {},
@@ -399,6 +423,7 @@ function normalizeStudent(student){
   }, student || {});
 
   s.tags = safeArray(s.tags);
+  s.products = safeArray(s.products);
   s.diagnosis = Object.assign({date:'',teacher:'',scores:{},weakSubjects:[],weakPoints:'',coreProblem:'',teachingAdvice:''}, s.diagnosis || {});
   s.diagnosis.scores = s.diagnosis.scores && typeof s.diagnosis.scores==='object' ? s.diagnosis.scores : {};
   s.diagnosis.weakSubjects = safeArray(s.diagnosis.weakSubjects);
@@ -427,6 +452,7 @@ function loadData(){
       phone:"186****0690", parent:"刘杨", relation:"母亲",
       style:"", personality:"敏感细腻型，善于观察他人情绪，需关注情绪状态",
       enrollDate:"2025-09-01", remark:"",
+      products:["周内晚辅","周末培优数学","周末培优物理"],
       diagnosis:{date:"2025-12-01",teacher:"数学陈老师",scores:{语文:51.3,数学:26,英语:30,物理:15.3,化学:32.6,生物:20},weakSubjects:["数学","物理"],weakPoints:"高中数学全科薄弱，尤其必修一函数、三角函数、正余弦定理"},
       growth:[
         {date:"2025-12-01",type:"入学摸底",scores:{语文:51.3,数学:26,英语:30,物理:15.3,化学:32.6,生物:20},performance:"需关注",comment:"全科基础薄弱，需系统性补强",parentFeedback:""},
@@ -442,6 +468,7 @@ function loadData(){
       phone:"139****8558", parent:"王倩", relation:"母亲",
       style:"混合型", personality:"竞争好胜",
       enrollDate:"2025-10-08", remark:"",
+      products:["周内午托","周末培优英语"],
       diagnosis:{date:"2026-01-30",teacher:"孔毅超",scores:{语文:38,数学:56,英语:38},weakSubjects:["英语","语文"],weakPoints:"英语：基础词汇薄弱；语文：字词字音薄弱"},
       growth:[
         {date:"2026-01-30",type:"入学摸底",scores:{语文:38,数学:56,英语:38},performance:"一般",comment:"英语语文基础薄弱，数学中等",parentFeedback:""},
@@ -647,27 +674,38 @@ function renderSidebar(keyword=''){
   const list = document.getElementById('sidebarList');
   list.innerHTML = '';
   const kw = keyword.toLowerCase();
+  const grouped = {};
   allStudents.forEach((s,i)=>{
-    if(kw && !s.name.toLowerCase().includes(kw) && !s.archiveCode.toLowerCase().includes(kw) && !s.grade.toLowerCase().includes(kw) && !s.school.toLowerCase().includes(kw)){
-      return;
-    }
-    const now = new Date();
-    const lastComm = s.communications.length > 0 ? s.communications[s.communications.length-1] : null;
-    const commDays = lastComm ? Math.floor((now - new Date(lastComm.date)) / 86400000) : 999;
-    
-    const card = document.createElement('div');
-    card.className = 'student-card';
-    card.dataset.index = i;
-    card.innerHTML = `
-      <div class="avatar-sm ${s.gender==='女'?'female':'male'}">${s.name[0]}</div>
-      <div class="info-wrap">
-        <div class="name">${s.name}</div>
-        <div class="meta">${s.school} · ${s.grade}</div>
-        ${commDays > COMM_WARN_DAYS ? `<div class="comm-warn">🔔 ${commDays>=999?'从未沟通':commDays+'天未沟通'}</div>` : `<div class="comm-ok">✓ 近期已沟通</div>`}
-      </div>
-    `;
-    card.onclick = ()=> showProfile(i);
-    list.appendChild(card);
+    if(kw && !s.name.toLowerCase().includes(kw) && !s.archiveCode.toLowerCase().includes(kw) && !s.grade.toLowerCase().includes(kw) && !s.school.toLowerCase().includes(kw)) return;
+    const g = getGradeGroup(s.grade || '');
+    if(!grouped[g]) grouped[g] = [];
+    grouped[g].push({s, i});
+  });
+  const sortedGrades = sortGradesByOrder(Object.keys(grouped));
+  sortedGrades.forEach(grade=>{
+    const header = document.createElement('div');
+    header.className = 'section-title';
+    header.style.paddingTop = '10px';
+    header.textContent = `${grade}（${grouped[grade].length}人）`;
+    list.appendChild(header);
+    grouped[grade].forEach(({s,i})=>{
+      const now = new Date();
+      const lastComm = s.communications.length > 0 ? s.communications[s.communications.length-1] : null;
+      const commDays = lastComm ? Math.floor((now - new Date(lastComm.date)) / 86400000) : 999;
+      const card = document.createElement('div');
+      card.className = 'student-card';
+      card.dataset.index = i;
+      card.innerHTML = `
+        <div class="avatar-sm ${s.gender==='女'?'female':'male'}">${s.name[0]}</div>
+        <div class="info-wrap">
+          <div class="name">${s.name}</div>
+          <div class="meta">${s.school} · ${s.grade}</div>
+          ${commDays > COMM_WARN_DAYS ? `<div class="comm-warn">🔔 ${commDays>=999?'从未沟通':commDays+'天未沟通'}</div>` : `<div class="comm-ok">✓ 近期已沟通</div>`}
+        </div>
+      `;
+      card.onclick = ()=> showProfile(i);
+      list.appendChild(card);
+    });
   });
 }
 
@@ -706,7 +744,7 @@ function getFocusReasons(student){
 function showDashboard(){
   const main = document.getElementById('mainContent');
   const gradeMap = {};
-  allStudents.forEach(s=>{ gradeMap[s.grade || EMPTY_TEXT] = (gradeMap[s.grade || EMPTY_TEXT] || 0) + 1; });
+  allStudents.forEach(s=>{ const g=getGradeGroup(s.grade||''); gradeMap[g] = (gradeMap[g] || 0) + 1; });
   const needComm = allStudents.filter(s=>getCommDays(s) > COMM_WARN_DAYS).length;
   const pendingProfile = allStudents.filter(isProfileIncomplete).length;
   const weekGrowth = allStudents.reduce((sum, s)=> sum + safeArray(s.growth).filter(g=>g.date && (new Date()-new Date(g.date))/86400000<=7).length, 0);
@@ -729,7 +767,7 @@ function showDashboard(){
     </div>
     <div class="card">
       <h3><span class="icon">📚</span> 年级分布</h3>
-      ${Object.entries(gradeMap).map(([g,c])=>`<div style="margin-bottom:10px"><div style="font-size:13px;color:var(--text);margin-bottom:4px">${g} ${c}人</div><div style="height:8px;background:#EEF1F6;border-radius:99px"><div style="height:8px;border-radius:99px;background:var(--navy);width:${Math.max(8, c / Math.max(1,allStudents.length) * 100)}%"></div></div></div>`).join('')}
+      ${sortGradesByOrder(Object.keys(gradeMap)).map(g=>{const c=gradeMap[g]; return `<div style="margin-bottom:10px"><div style="font-size:13px;color:var(--text);margin-bottom:4px">${g} ${c}人</div><div style="height:8px;background:#EEF1F6;border-radius:99px"><div style="height:8px;border-radius:99px;background:var(--navy);width:${Math.max(8, c / Math.max(1,allStudents.length) * 100)}%"></div></div></div>`;}).join('')}
     </div>
     <div class="card">
       <h3><span class="icon">⚠️</span> 重点关注学生</h3>
@@ -777,6 +815,7 @@ function renderParentProfile(student){
       </div>
       <div class="card"><h3><span class="icon">📌</span> 阶段学习概况</h3><div class="info-grid">
         <div class="info-item"><div class="label">当前学习状态</div><div class="value">${val(s.status)}</div></div>
+        <div class="info-item"><div class="label">当前在读项目</div><div class="value">${s.products.length ? s.products.join('、') : EMPTY_TEXT}</div></div>
         <div class="info-item"><div class="label">最近一次成绩</div><div class="value">${computeScoreSummary(latestGrowth)}</div></div>
         <div class="info-item"><div class="label">本阶段目标</div><div class="value">${val(s.plan.shortTerm)}</div></div>
         <div class="info-item"><div class="label">下阶段计划</div><div class="value">${val(s.nextPlan)}</div></div>
@@ -849,6 +888,7 @@ function showProfile(idx){
           <div class="info-item"><div class="label">年级</div><div class="value">${val(s.grade)}</div></div>
           <div class="info-item"><div class="label">档案编号</div><div class="value" style="font-family:monospace;color:var(--gold)">${val(s.archiveCode)}</div></div>
           <div class="info-item"><div class="label">入学日期</div><div class="value">${val(s.enrollDate)}</div></div>
+          <div class="info-item"><div class="label">在读产品 / 服务项目</div><div class="value">${s.products.length ? s.products.join('、') : EMPTY_TEXT}</div></div>
           <div class="info-item"><div class="label">当前课程/每周课时</div><div class="value">${val(s.plan.weeklyHours)}</div></div>
           <div class="info-item"><div class="label">负责老师</div><div class="value">${val(s.plan.teacher)}</div></div>
           <div class="info-item"><div class="label">家长姓名</div><div class="value">${val(s.parent)}</div></div>
@@ -986,48 +1026,62 @@ function showProfile(idx){
 
 function renderTrendChart(s){
   const container = document.getElementById('trendChart');
-  if(!container || s.growth.length < 2) {
-    if(container) container.innerHTML = '<div style="text-align:center;color:#999;padding:20px;font-size:13px">需要2次以上记录才能生成趋势</div>';
+  if(!container) return;
+  const growthList = safeArray(s.growth).filter(g=>g.date).slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(growthList.length < 2){
+    container.innerHTML = '<div style="text-align:center;color:#999;padding:20px;font-size:13px">需要至少 2 次成绩记录才能生成趋势图</div>';
     return;
   }
-  const allSubjects = new Set();
-  s.growth.forEach(g=> Object.keys(g.scores).forEach(k=> allSubjects.add(k)));
-  let html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
-  html += '<tr style="background:var(--navy);color:#fff"><th style="padding:8px 12px">日期</th><th style="padding:8px 8px">类型</th>';
-  allSubjects.forEach(sub=> html+=`<th style="padding:8px 8px">${sub}</th>`);
-  html += '</tr>';
-  s.growth.forEach((g,i)=>{
-    const bg = i%2===0?'#fff':'var(--light)';
-    html += `<tr style="background:${bg}">`;
-    html += `<td style="padding:8px 12px;text-align:center">${g.date}</td>`;
-    html += `<td style="padding:8px 8px;text-align:center">${g.type}</td>`;
-    allSubjects.forEach(sub=>{
-      const v = g.scores[sub];
-      if(v!==undefined && v!==null){
-        html+=`<td style="padding:8px 8px;text-align:center;font-weight:600;color:${scoreClass(v)==='high'?'var(--green)':scoreClass(v)==='mid'?'var(--orange)':'var(--red)'}">${v}</td>`;
-      } else {
-        html+=`<td style="padding:8px 8px;text-align:center;color:#ccc">-</td>`;
-      }
-    });
-    html += '</tr>';
-  });
-  if(s.growth.length>=2){
-    const first = s.growth[0], last = s.growth[s.growth.length-1];
-    html += '<tr style="background:#FFFDE7;font-weight:600"><td colspan="2" style="padding:8px 12px;text-align:center">📈 变化</td>';
-    allSubjects.forEach(sub=>{
-      const fv = first.scores[sub], lv = last.scores[sub];
-      if(fv!==undefined && lv!==undefined){
-        const diff = (lv-fv).toFixed(1);
-        const color = diff>0?'var(--green)':diff<0?'var(--red)':'#999';
-        html+=`<td style="padding:8px 8px;text-align:center;color:${color}">${diff>0?'+':''}${diff}</td>`;
-      } else {
-        html+=`<td style="padding:8px 8px;text-align:center;color:#ccc">-</td>`;
-      }
-    });
-    html += '</tr>';
+  const activeSubjects = SUBJECT_OPTIONS.filter(sub=>growthList.some(g=>g.scores && g.scores[sub]!==undefined && g.scores[sub]!==null && !Number.isNaN(Number(g.scores[sub]))));
+  if(!activeSubjects.length){
+    container.innerHTML = '<div style="text-align:center;color:#999;padding:20px;font-size:13px">暂无可展示的成绩趋势</div>';
+    return;
   }
-  html += '</table></div>';
-  container.innerHTML = html;
+
+  const chartWidth = 700, chartHeight = 260;
+  const pad = {l:38,r:18,t:18,b:40};
+  const innerW = chartWidth - pad.l - pad.r;
+  const innerH = chartHeight - pad.t - pad.b;
+  const yTicks = [0,20,40,60,80,100];
+  const colors = ['#1A2B4E','#C8A951','#1565C0','#2E7D32','#E65100','#6A1B9A','#00838F'];
+  const xPos = i => pad.l + (growthList.length===1 ? innerW/2 : (innerW * i / (growthList.length-1)));
+  const yPos = v => pad.t + innerH - Math.max(0, Math.min(100, v)) / 100 * innerH;
+
+  const grid = yTicks.map(t=>`<line x1="${pad.l}" y1="${yPos(t)}" x2="${pad.l+innerW}" y2="${yPos(t)}" stroke="#E8ECF3" stroke-width="1"/><text x="${pad.l-6}" y="${yPos(t)+4}" font-size="10" text-anchor="end" fill="#888">${t}</text>`).join('');
+  const xLabels = growthList.map((g,i)=>`<text x="${xPos(i)}" y="${chartHeight-12}" font-size="10" text-anchor="middle" fill="#777">${g.date.slice(5)}</text>`).join('');
+  const axes = `<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${pad.t+innerH}" stroke="#9AA4B2"/><line x1="${pad.l}" y1="${pad.t+innerH}" x2="${pad.l+innerW}" y2="${pad.t+innerH}" stroke="#9AA4B2"/>`;
+
+  const lines = activeSubjects.map((sub,idx)=>{
+    const pts = growthList.map((g,i)=> g.scores && g.scores[sub]!==undefined && !Number.isNaN(Number(g.scores[sub])) ? `${xPos(i)},${yPos(Number(g.scores[sub]))}` : null);
+    const segments = [];
+    let current = [];
+    pts.forEach(p=>{ if(p){ current.push(p);} else if(current.length){ segments.push(current); current=[]; }});
+    if(current.length) segments.push(current);
+    const circles = growthList.map((g,i)=>{
+      const v = g.scores && g.scores[sub];
+      if(v===undefined || Number.isNaN(Number(v))) return '';
+      return `<circle cx="${xPos(i)}" cy="${yPos(Number(v))}" r="2.5" fill="${colors[idx % colors.length]}"/>`;
+    }).join('');
+    return segments.map(seg=>`<polyline points="${seg.join(' ')}" fill="none" stroke="${colors[idx % colors.length]}" stroke-width="2"/>`).join('') + circles;
+  }).join('');
+  const legends = activeSubjects.map((sub,idx)=>`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:12px;color:#555"><i style="display:inline-block;width:10px;height:10px;background:${colors[idx % colors.length]};border-radius:2px"></i>${sub}</span>`).join('');
+
+  let table = '<div style="overflow-x:auto;margin-top:14px"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  table += '<tr style="background:var(--navy);color:#fff"><th style="padding:8px 12px">日期</th><th style="padding:8px 8px">类型</th>';
+  activeSubjects.forEach(sub=> table += `<th style="padding:8px 8px">${sub}</th>`);
+  table += '</tr>';
+  growthList.forEach((g,i)=>{
+    const bg = i%2===0?'#fff':'var(--light)';
+    table += `<tr style="background:${bg}"><td style="padding:8px 12px;text-align:center">${g.date}</td><td style="padding:8px 8px;text-align:center">${g.type||''}</td>`;
+    activeSubjects.forEach(sub=>{
+      const v = g.scores && g.scores[sub];
+      table += `<td style="padding:8px 8px;text-align:center">${(v===undefined || Number.isNaN(Number(v)))?'-':v}</td>`;
+    });
+    table += '</tr>';
+  });
+  table += '</table></div>';
+
+  container.innerHTML = `<div style="overflow-x:auto"><svg viewBox="0 0 ${chartWidth} ${chartHeight}" style="width:100%;min-width:620px;height:auto;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px">${grid}${axes}${lines}${xLabels}</svg></div><div style="margin-top:10px">${legends}</div>${table}`;
 }
 
 function switchTab(el, tabId){
@@ -1077,6 +1131,7 @@ function showAddStudentModal(){
       <div class="form-group"><label>学习风格</label><input id="m_style" placeholder="如：视觉型、听觉型、混合型"></div>
       <div class="form-group"><label>性格特点</label><input id="m_personality" placeholder="性格描述"></div>
     </div>
+    <div class="form-group"><label>在读产品/服务项目</label>${renderProductCheckboxes('m_product_')}</div>
     <div class="form-group"><label>备注</label><textarea id="m_remark" placeholder="其他备注"></textarea></div>
     <div class="btn-row">
       <button class="admin-btn" onclick="hideModal()">取消</button>
@@ -1113,6 +1168,7 @@ function addStudent(){
     nextPlan: '',
     familyAdvice: '',
     tags: [],
+    products: getSelectedProducts('m_product_'),
     diagnosis: {date:'',teacher:'',scores:{},weakSubjects:[],weakPoints:'',coreProblem:'',teachingAdvice:''},
     growth: [],
     plan: {period:'',goalScore:'',shortTerm:'',midTerm:'',longTerm:'',weeklyHours:'',status:'待制定',teacher:''},
@@ -1178,6 +1234,7 @@ function showEditModal(idx){
       <div class="form-group"><label>家庭配合建议</label><input id="e_family_advice" value="${s.familyAdvice||''}"></div>
       <div class="form-group"><label>内部标签（、分隔）</label><input id="e_tags" value="${(s.tags||[]).join('、')}"></div>
     </div>
+    <div class="form-group"><label>在读产品/服务项目</label>${renderProductCheckboxes('e_product_', s.products || [])}</div>
     <div class="form-row">
       <div class="form-group"><label>规划周期</label><input id="e_plan_period" value="${s.plan.period}"></div>
       <div class="form-group"><label>目标成绩</label><input id="e_plan_goal" value="${s.plan.goalScore}"></div>
@@ -1230,6 +1287,7 @@ function saveEdit(idx){
   s.nextPlan = document.getElementById('e_next_plan').value.trim();
   s.familyAdvice = document.getElementById('e_family_advice').value.trim();
   s.tags = document.getElementById('e_tags').value.trim() ? document.getElementById('e_tags').value.trim().split('、').map(t=>t.trim()).filter(Boolean) : [];
+  s.products = getSelectedProducts('e_product_');
   s.plan.period = document.getElementById('e_plan_period').value.trim();
   s.plan.goalScore = document.getElementById('e_plan_goal').value.trim();
   s.plan.shortTerm = document.getElementById('e_plan_short').value.trim();
@@ -1263,8 +1321,7 @@ function deleteStudent(idx){
 // ===== 添加成长记录 =====
 function showAddGrowthModal(idx){
   const s = allStudents[idx];
-  const subjects = Object.keys(s.diagnosis.scores).length > 0 ? Object.keys(s.diagnosis.scores) : ['语文','数学','英语'];
-  let scoreInputs = subjects.map(sub=>`
+  let scoreInputs = SUBJECT_OPTIONS.map(sub=>`
     <div class="form-group" style="display:inline-block;width:80px;margin-right:8px">
       <label>${sub}</label><input id="g_score_${sub}" type="number" step="0.1" placeholder="-" style="width:70px">
     </div>
@@ -1291,11 +1348,13 @@ function showAddGrowthModal(idx){
 
 function addGrowth(idx){
   const s = allStudents[idx];
-  const subjects = Object.keys(s.diagnosis.scores).length > 0 ? Object.keys(s.diagnosis.scores) : ['语文','数学','英语'];
   const scores = {};
-  subjects.forEach(sub=>{
+  SUBJECT_OPTIONS.forEach(sub=>{
     const v = document.getElementById('g_score_'+sub);
-    if(v && v.value !== '') scores[sub] = parseFloat(v.value);
+    if(v && v.value !== ''){
+      const num = parseFloat(v.value);
+      if(!Number.isNaN(num)) scores[sub] = num;
+    }
   });
   
   const record = {
