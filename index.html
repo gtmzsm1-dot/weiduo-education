@@ -205,6 +205,26 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
 .import-area:hover{border-color:var(--gold);background:#FFFDE7}
 .import-area input{display:none}
 
+/* ===== AI提分工坊 ===== */
+.aiw-page{display:none;min-height:100vh;background:var(--light)}
+.aiw-topbar{background:var(--navy);color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.aiw-topbar h2{font-size:20px;color:var(--gold)}
+.aiw-topbar .sub{font-size:12px;color:#AABBCC}
+.aiw-wrap{padding:20px 24px;max-width:1200px;margin:0 auto}
+.aiw-card{background:#fff;border-radius:10px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:14px}
+.aiw-toolbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-bottom:12px}
+.aiw-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 2fr 160px;gap:8px;font-size:12px;align-items:center}
+.aiw-grid.header{font-weight:600;color:var(--navy);padding:8px;background:var(--light);border-radius:8px}
+.aiw-row{padding:10px 8px;border-bottom:1px solid var(--border)}
+.aiw-row:last-child{border-bottom:none}
+.aiw-empty{font-size:13px;color:var(--sub);padding:16px}
+.aiw-badge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:11px;background:#E8EDF5;color:var(--navy)}
+.aiw-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.aiw-question-paper{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px}
+.aiw-answer-area{min-height:90px;border:1px dashed #bbb;border-radius:6px;padding:8px;margin-top:8px}
+.aiw-grade-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px}
+.aiw-stats-box{background:#F8FAFD;border:1px solid #E3EAF5;border-radius:8px;padding:12px;font-size:12px;line-height:1.7}
+
 @media(max-width:768px){
 .container{flex-direction:column}
 .sidebar{width:100%;max-height:200px;display:flex;flex-direction:column}
@@ -226,6 +246,16 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
 .parent-wrap{padding:12px}
 .parent-hero{padding:20px}
 .parent-hero h2{font-size:22px}
+.aiw-wrap{padding:12px}
+.aiw-grid{grid-template-columns:1fr}
+.aiw-grid.header{display:none}
+.aiw-row{background:var(--light);border-radius:8px;margin-bottom:8px}
+}
+@media print{
+  body{background:#fff !important;color:#000 !important}
+  .no-print,.top-bar,.sidebar,.admin-panel,.admin-toggle,.footer{display:none !important}
+  .aiw-page,.aiw-wrap,.aiw-card{display:block !important;padding:0 !important;margin:0 !important;box-shadow:none !important;border:none !important;background:#fff !important}
+  .aiw-question-paper{break-inside:avoid-page;border:1px solid #ddd}
 }
 </style>
 </head>
@@ -330,6 +360,9 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
         <div style="margin-top:10px">
           <button onclick="showDashboard()" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--navy);font-size:12px;cursor:pointer;font-family:inherit">返回驾驶舱</button>
         </div>
+        <div style="margin-top:8px">
+          <button id="aiWorkshopEntryBtn" onclick="showAiWorkshopPage()" style="display:none;width:100%;padding:8px;border:1px solid var(--gold);border-radius:6px;background:#FFF8E1;color:var(--navy);font-size:12px;cursor:pointer;font-family:inherit">AI提分工坊</button>
+        </div>
       </div>
       <div class="section-title">在读学员</div>
       <div class="sidebar-list" id="sidebarList"></div>
@@ -348,6 +381,9 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
 
 <!-- ===== 家长端页面 ===== -->
 <div class="admin-page" id="parentPage" style="display:none"></div>
+
+<!-- ===== AI提分工坊 ===== -->
+<div class="aiw-page" id="aiWorkshopPage"></div>
 
 <script>
 const BASE_URL = window.location.href.split('?')[0];
@@ -383,6 +419,28 @@ let isAdmin = false;
 let currentStudent = null;
 let allStudents = [];
 const EMPTY_TEXT = '待完善';
+const AI_WORKSHOP_META_KEY = 'ai_workshop_v1_meta';
+const AI_WORKSHOP_STUDENTS_KEY = 'ai_workshop_v1_students';
+const AI_WORKSHOP_QUIZZES_KEY = 'ai_workshop_v1_quizzes';
+const AI_WORKSHOP_QUESTIONS_KEY = 'ai_workshop_v1_questions';
+const AI_WORKSHOP_ANSWERS_KEY = 'ai_workshop_v1_answers';
+const AI_WORKSHOP_LEVELS = ["基础薄弱型","中等提升型","高分突破型","培优拔高型"];
+const AI_WORKSHOP_GRADES = ["高一","高二","高三","复读"];
+const AI_WORKSHOP_STATUSES = ["草稿","待作答","待批改","已完成"];
+const AI_WORKSHOP_MISTAKE_TAG_OPTIONS = [
+  "A01 概念不清","A02 公式定理记忆错误","A03 前置知识缺失","A04 知识点混淆",
+  "B01 题型识别错误","B02 解题模型不会用","B03 步骤顺序混乱","B04 分类讨论不完整","B05 参数范围意识弱","B06 函数与方程思想弱","B07 数形结合意识弱",
+  "C01 计算不稳定","C02 代数变形能力弱","C03 符号处理错误","C04 逻辑推理不严密","C05 书写过程不规范",
+  "D01 导数单调性判断弱","D02 导数极值最值转化弱","D03 数列递推关系处理弱","D04 解析几何计算链条弱","D05 立体几何空间想象弱","D06 概率统计模型识别弱","D07 三角恒等变换不熟"
+];
+let aiWorkshopStudents = [];
+let aiWorkshopQuizzes = [];
+let aiWorkshopQuestions = [];
+let aiWorkshopAnswers = [];
+let aiWorkshopCurrentStudentId = '';
+let aiWorkshopCurrentQuizId = '';
+let aiWorkshopPrintMode = 'student';
+let aiWorkshopLastCheckResult = null;
 
 function val(v){ return (v===undefined || v===null || String(v).trim()==='') ? EMPTY_TEXT : String(v); }
 function maskPhone(phone){
@@ -592,7 +650,9 @@ function doLogout(){
   isAdmin = false;
   document.getElementById('profilePage').style.display='none';
   document.getElementById('parentPage').style.display='none';
+  document.getElementById('aiWorkshopPage').style.display='none';
   document.getElementById('adminToggle').style.display='none';
+  document.getElementById('aiWorkshopEntryBtn').style.display='none';
   document.getElementById('loginPage').style.display='flex';
   document.getElementById('archiveCode').value='';
   document.getElementById('adminPassword').value='';
@@ -622,12 +682,14 @@ function checkUrlParams(){
 
 // ===== 页面切换 =====
 function showProfilePage(){
+  document.getElementById('aiWorkshopPage').style.display='none';
   document.getElementById('loginPage').style.display='none';
   if(isAdmin){
     document.getElementById('parentPage').style.display='none';
     document.getElementById('profilePage').style.display='block';
     document.getElementById('adminToggle').style.display='flex';
     document.getElementById('addStudentBtn').style.display='block';
+    document.getElementById('aiWorkshopEntryBtn').style.display='block';
     buildAdminPanel();
     renderSidebar();
     showDashboard();
@@ -636,6 +698,7 @@ function showProfilePage(){
     document.getElementById('parentPage').style.display='block';
     document.getElementById('adminToggle').style.display='none';
     document.getElementById('addStudentBtn').style.display='none';
+    document.getElementById('aiWorkshopEntryBtn').style.display='none';
     renderParentProfile(currentStudent);
   }
 }
@@ -1949,6 +2012,1140 @@ function doImport(){
   buildAdminPanel();
 }
 
+// ===== AI提分工坊（P1-1） =====
+function aiWorkshopNow(){ return new Date().toISOString(); }
+function aiWorkshopGenId(prefix='aiw'){ return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`; }
+function aiWorkshopEscapeHtml(value){
+  return String(value === undefined || value === null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function aiWorkshopToNumber(v){
+  if(v === '' || v === null || v === undefined) return '';
+  const n = Number(v);
+  return Number.isNaN(n) ? '' : n;
+}
+function aiWorkshopNormalizeStudent(raw){
+  const now = aiWorkshopNow();
+  const s = Object.assign({
+    id: aiWorkshopGenId('stu'),
+    name: '',
+    grade: '高一',
+    examDirection: '高考',
+    currentScore: '',
+    targetScore: '',
+    studentLevel: AI_WORKSHOP_LEVELS[0],
+    weakModules: '',
+    currentFocus: '',
+    notes: '',
+    createdAt: now,
+    updatedAt: now
+  }, raw || {});
+  s.examDirection = '高考';
+  s.currentScore = aiWorkshopToNumber(s.currentScore);
+  s.targetScore = aiWorkshopToNumber(s.targetScore);
+  return s;
+}
+function aiWorkshopNormalizeQuiz(raw){
+  const now = aiWorkshopNow();
+  const q = Object.assign({
+    id: aiWorkshopGenId('quiz'),
+    studentId: '',
+    title: '',
+    grade: '高一',
+    examDirection: '高考',
+    knowledgeModule: '',
+    knowledgePoint: '',
+    studentLevel: AI_WORKSHOP_LEVELS[0],
+    questionCount: 0,
+    questionTypeMix: { fillBlank: 0, solution: 0 },
+    difficultyMix: { basic: 0, medium: 0, advanced: 0, challenge: 0 },
+    status: '草稿',
+    notes: '',
+    createdAt: now,
+    updatedAt: now
+  }, raw || {});
+  q.examDirection = '高考';
+  q.questionCount = Number(q.questionCount) || 0;
+  q.questionTypeMix = Object.assign({ fillBlank: 0, solution: 0 }, q.questionTypeMix || {});
+  q.difficultyMix = Object.assign({ basic: 0, medium: 0, advanced: 0, challenge: 0 }, q.difficultyMix || {});
+  return q;
+}
+function aiWorkshopNormalizeQuestion(raw){
+  const now = aiWorkshopNow();
+  const q = Object.assign({
+    id: aiWorkshopGenId('q'),
+    quizId: '',
+    questionNumber: 1,
+    questionType: '填空题',
+    questionText: '',
+    latexContent: '',
+    standardAnswer: '',
+    explanation: '',
+    knowledgeModule: '',
+    knowledgePoint: '',
+    difficulty: '基础',
+    diagnosticPurpose: '',
+    testedAbility: '',
+    commonMistakeTags: [],
+    score: 0,
+    order: 1,
+    questionImageData: '',
+    questionImageUrl: '',
+    aiRecognizedQuestion: '',
+    aiRecognitionStatus: '未识别',
+    aiConfidence: '',
+    teacherConfirmedQuestion: '',
+    createdAt: now,
+    updatedAt: now
+  }, raw || {});
+  q.commonMistakeTags = Array.isArray(q.commonMistakeTags) ? q.commonMistakeTags.map(x=>String(x).trim()).filter(Boolean) : [];
+  q.score = Number(q.score) || 0;
+  q.order = Number(q.order) || 1;
+  q.questionNumber = Number(q.questionNumber) || 1;
+  return q;
+}
+function aiWorkshopNormalizeAnswer(raw){
+  const now = aiWorkshopNow();
+  const a = Object.assign({
+    id: aiWorkshopGenId('ans'),
+    studentId: '',
+    quizId: '',
+    questionId: '',
+    studentAnswerText: '',
+    studentAnswerImageData: '',
+    studentAnswerImageName: '',
+    result: '待确认',
+    score: '',
+    teacherComment: '',
+    mistakeTags: [],
+    aiRecognizedAnswer: '',
+    aiJudgment: '',
+    aiErrorStep: '',
+    aiMistakeTags: [],
+    aiDiagnosis: '',
+    aiStatus: '未识别',
+    createdAt: now,
+    updatedAt: now
+  }, raw || {});
+  a.mistakeTags = Array.isArray(a.mistakeTags) ? a.mistakeTags.map(x=>String(x).trim()).filter(Boolean) : [];
+  a.aiMistakeTags = Array.isArray(a.aiMistakeTags) ? a.aiMistakeTags.map(x=>String(x).trim()).filter(Boolean) : [];
+  if(a.score !== '') a.score = Number(a.score) || 0;
+  return a;
+}
+function aiWorkshopLoadData(){
+  try{
+    const studentsRaw = JSON.parse(localStorage.getItem(AI_WORKSHOP_STUDENTS_KEY) || '[]');
+    aiWorkshopStudents = (Array.isArray(studentsRaw) ? studentsRaw : []).map(aiWorkshopNormalizeStudent);
+  }catch(e){ aiWorkshopStudents = []; }
+  try{
+    const quizzesRaw = JSON.parse(localStorage.getItem(AI_WORKSHOP_QUIZZES_KEY) || '[]');
+    aiWorkshopQuizzes = (Array.isArray(quizzesRaw) ? quizzesRaw : []).map(aiWorkshopNormalizeQuiz);
+  }catch(e){ aiWorkshopQuizzes = []; }
+  try{
+    const questionsRaw = JSON.parse(localStorage.getItem(AI_WORKSHOP_QUESTIONS_KEY) || '[]');
+    aiWorkshopQuestions = (Array.isArray(questionsRaw) ? questionsRaw : []).map(aiWorkshopNormalizeQuestion);
+  }catch(e){ aiWorkshopQuestions = []; }
+  try{
+    const answersRaw = JSON.parse(localStorage.getItem(AI_WORKSHOP_ANSWERS_KEY) || '[]');
+    aiWorkshopAnswers = (Array.isArray(answersRaw) ? answersRaw : []).map(aiWorkshopNormalizeAnswer);
+  }catch(e){ aiWorkshopAnswers = []; }
+  aiWorkshopSaveMeta();
+}
+function aiWorkshopSaveMeta(){
+  localStorage.setItem(AI_WORKSHOP_META_KEY, JSON.stringify({ version:'v1-p1', updatedAt: aiWorkshopNow() }));
+}
+function saveAiWorkshopStudents(){
+  localStorage.setItem(AI_WORKSHOP_STUDENTS_KEY, JSON.stringify(aiWorkshopStudents));
+  aiWorkshopSaveMeta();
+}
+function saveAiWorkshopQuizzes(){
+  localStorage.setItem(AI_WORKSHOP_QUIZZES_KEY, JSON.stringify(aiWorkshopQuizzes));
+  aiWorkshopSaveMeta();
+}
+function saveAiWorkshopQuestions(){
+  localStorage.setItem(AI_WORKSHOP_QUESTIONS_KEY, JSON.stringify(aiWorkshopQuestions));
+  aiWorkshopSaveMeta();
+}
+function saveAiWorkshopAnswers(){
+  localStorage.setItem(AI_WORKSHOP_ANSWERS_KEY, JSON.stringify(aiWorkshopAnswers));
+  aiWorkshopSaveMeta();
+}
+function aiWorkshopGetQuestionsByQuizId(quizId){
+  return aiWorkshopQuestions.filter(q=>q.quizId===quizId).sort((a,b)=>(Number(a.order)||0)-(Number(b.order)||0) || new Date(a.createdAt)-new Date(b.createdAt));
+}
+function aiWorkshopReindexQuestions(quizId){
+  const list = aiWorkshopGetQuestionsByQuizId(quizId);
+  list.forEach((q,idx)=>{
+    q.order = idx + 1;
+    q.questionNumber = idx + 1;
+  });
+}
+function aiWorkshopUpdateQuizQuestionCount(quizId){
+  const quiz = aiWorkshopQuizzes.find(q=>q.id===quizId);
+  if(!quiz) return;
+  quiz.questionCount = aiWorkshopQuestions.filter(q=>q.quizId===quizId).length;
+  quiz.updatedAt = aiWorkshopNow();
+}
+function aiWorkshopDeleteQuestionsByQuizId(quizId){
+  aiWorkshopQuestions = aiWorkshopQuestions.filter(q=>q.quizId!==quizId);
+}
+function aiWorkshopSyncAllQuizQuestionCounts(){
+  aiWorkshopQuizzes.forEach(quiz=>{
+    quiz.questionCount = aiWorkshopQuestions.filter(q=>q.quizId===quiz.id).length;
+  });
+}
+function aiWorkshopFormatQuestionSummary(text){
+  const raw = String(text || '').trim();
+  if(!raw) return '（无题干）';
+  return raw.length > 28 ? raw.slice(0, 28) + '…' : raw;
+}
+function aiWorkshopParseMistakeTags(input){
+  if(Array.isArray(input)) return input.map(x=>String(x).trim()).filter(Boolean);
+  return String(input || '')
+    .split(/[,，、\n]/g)
+    .map(x=>x.trim())
+    .filter(Boolean);
+}
+function aiWorkshopMoveQuestion(questionId, direction){
+  const q = aiWorkshopQuestions.find(x=>x.id===questionId);
+  if(!q) return;
+  const list = aiWorkshopGetQuestionsByQuizId(q.quizId);
+  const idx = list.findIndex(x=>x.id===questionId);
+  if(idx < 0) return;
+  const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+  if(targetIdx < 0 || targetIdx >= list.length) return;
+  const current = list[idx];
+  const target = list[targetIdx];
+  const currentOrder = current.order;
+  current.order = target.order;
+  target.order = currentOrder;
+  current.updatedAt = aiWorkshopNow();
+  target.updatedAt = aiWorkshopNow();
+  aiWorkshopReindexQuestions(q.quizId);
+  saveAiWorkshopQuestions();
+  renderAiWorkshopQuizQuestions(q.quizId);
+}
+function aiWorkshopGetPrintModeLabel(mode){
+  return mode === 'teacher' ? '教师批改版' : '学生作答版';
+}
+function aiWorkshopGetAnswer(studentId, quizId, questionId){
+  return aiWorkshopAnswers.find(a=>a.studentId===studentId && a.quizId===quizId && a.questionId===questionId);
+}
+function aiWorkshopDefaultScoreByResult(result, maxScore){
+  if(result === '正确') return maxScore;
+  if(result === '错误' || result === '未作答') return 0;
+  return '';
+}
+function aiWorkshopComputeQuizStats(studentId, quizId){
+  const questions = aiWorkshopGetQuestionsByQuizId(quizId);
+  const stats = {
+    total: questions.length, graded:0, correct:0, wrong:0, half:0, empty:0, pending:0, totalScore:0, fullScore:0,
+    byType:{}, byDifficulty:{}, byModule:{}, byPoint:{}, tagFreq:{}, topIssues:[]
+  };
+  questions.forEach(q=>{
+    const ans = aiWorkshopGetAnswer(studentId, quizId, q.id);
+    const result = ans ? ans.result : '待确认';
+    stats.fullScore += Number(q.score) || 0;
+    if(ans) stats.graded++;
+    if(result==='正确') stats.correct++;
+    else if(result==='错误') stats.wrong++;
+    else if(result==='半对') stats.half++;
+    else if(result==='未作答') stats.empty++;
+    else stats.pending++;
+    const score = ans && ans.score!=='' ? Number(ans.score)||0 : 0;
+    stats.totalScore += score;
+    const add = (bucket,key,val)=>{ if(!bucket[key]) bucket[key]={total:0,correct:0,score:0}; bucket[key].total++; bucket[key].score += score; if(result==='正确') bucket[key].correct++; };
+    add(stats.byType, q.questionType || '未知', score);
+    add(stats.byDifficulty, q.difficulty || '未知', score);
+    add(stats.byModule, q.knowledgeModule || '未分类', score);
+    add(stats.byPoint, q.knowledgePoint || '未分类', score);
+    (ans?.mistakeTags || []).forEach(tag=>{ stats.tagFreq[tag]=(stats.tagFreq[tag]||0)+1; });
+  });
+  const topTagIssues = Object.entries(stats.tagFreq).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,v])=>`${k}（${v}次）`);
+  const weakPoints = Object.entries(stats.byPoint)
+    .map(([k,v])=>({k,rate:v.total? v.correct/v.total : 0}))
+    .sort((a,b)=>a.rate-b.rate)
+    .slice(0,3)
+    .map(it=>`${it.k}（正确率${Math.round(it.rate*100)}%）`);
+  stats.topIssues = [...topTagIssues];
+  weakPoints.forEach(item=>{ if(stats.topIssues.length<3 && !stats.topIssues.includes(item)) stats.topIssues.push(item); });
+  return stats;
+}
+function aiWorkshopGetBackupPayload(){
+  return {
+    exportedAt: aiWorkshopNow(),
+    version: 'v1-p1',
+    source: 'AI提分工坊',
+    data: {
+      meta: JSON.parse(localStorage.getItem(AI_WORKSHOP_META_KEY) || '{}'),
+      students: aiWorkshopStudents,
+      quizzes: aiWorkshopQuizzes,
+      questions: aiWorkshopQuestions,
+      answers: aiWorkshopAnswers
+    }
+  };
+}
+function aiWorkshopFormatSizeFromChars(chars){
+  const bytes = chars * 2;
+  if(bytes < 1024) return `${bytes} B`;
+  if(bytes < 1024 * 1024) return `${(bytes/1024).toFixed(1)} KB`;
+  return `${(bytes/1024/1024).toFixed(2)} MB`;
+}
+function aiWorkshopEstimateStorage(){
+  const keys = [AI_WORKSHOP_META_KEY, AI_WORKSHOP_STUDENTS_KEY, AI_WORKSHOP_QUIZZES_KEY, AI_WORKSHOP_QUESTIONS_KEY, AI_WORKSHOP_ANSWERS_KEY];
+  const detail = keys.map(k=>{
+    const value = localStorage.getItem(k) || '';
+    return {key:k, chars:value.length};
+  });
+  const totalChars = detail.reduce((sum,it)=>sum+it.chars,0);
+  const imageChars = aiWorkshopAnswers.reduce((sum,a)=>sum + String(a.studentAnswerImageData || '').length, 0);
+  const imageCount = aiWorkshopAnswers.filter(a=>a.studentAnswerImageData).length;
+  return {detail,totalChars,imageChars,imageCount};
+}
+function aiWorkshopExportBackup(){
+  const backup = aiWorkshopGetBackupPayload();
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const filename = `ai-workshop-backup-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('工坊数据导出成功');
+}
+function aiWorkshopShowImportModal(){
+  showModal(`
+    <h3>导入工坊数据（替换全部）</h3>
+    <div class="form-group"><label>选择 JSON 备份文件</label><input type="file" id="aiwImportFile" accept=".json,application/json" onchange="aiWorkshopHandleImportBackup(event)"></div>
+    <div id="aiwImportHint" style="font-size:12px;color:var(--sub)">仅支持 AI提分工坊备份结构。</div>
+    <div class="btn-row"><button class="admin-btn" onclick="hideModal()">关闭</button></div>
+  `);
+}
+function aiWorkshopHandleImportBackup(event){
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
+  if(!file.name.toLowerCase().endsWith('.json')){
+    showToast('仅支持 .json 文件');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      const data = parsed && parsed.data ? parsed.data : null;
+      if(!data || !Array.isArray(data.students) || !Array.isArray(data.quizzes) || !Array.isArray(data.questions) || !Array.isArray(data.answers)){
+        showToast('导入失败：JSON 结构不符合要求');
+        return;
+      }
+      if(!confirm('导入将替换全部 AI提分工坊数据，是否继续？')) return;
+      if(!confirm('请再次确认：该操作不可撤销，是否继续导入？')) return;
+      localStorage.setItem(AI_WORKSHOP_META_KEY, JSON.stringify(data.meta || {version:'v1-p1',updatedAt:aiWorkshopNow()}));
+      localStorage.setItem(AI_WORKSHOP_STUDENTS_KEY, JSON.stringify(data.students));
+      localStorage.setItem(AI_WORKSHOP_QUIZZES_KEY, JSON.stringify(data.quizzes));
+      localStorage.setItem(AI_WORKSHOP_QUESTIONS_KEY, JSON.stringify(data.questions));
+      localStorage.setItem(AI_WORKSHOP_ANSWERS_KEY, JSON.stringify(data.answers));
+      aiWorkshopLoadData();
+      hideModal();
+      showToast('工坊数据导入成功');
+      showAiWorkshopPage();
+    }catch(err){
+      showToast('导入失败：JSON 文件无效');
+    }
+  };
+  reader.readAsText(file);
+}
+function aiWorkshopRunDataCheck(){
+  const issues = [];
+  if(!Array.isArray(aiWorkshopStudents)) issues.push('students 不是数组');
+  if(!Array.isArray(aiWorkshopQuizzes)) issues.push('quizzes 不是数组');
+  if(!Array.isArray(aiWorkshopQuestions)) issues.push('questions 不是数组');
+  if(!Array.isArray(aiWorkshopAnswers)) issues.push('answers 不是数组');
+  const studentIds = new Set(aiWorkshopStudents.map(s=>s.id));
+  const quizIds = new Set(aiWorkshopQuizzes.map(q=>q.id));
+  const questionIds = new Set(aiWorkshopQuestions.map(q=>q.id));
+  const quizById = Object.fromEntries(aiWorkshopQuizzes.map(q=>[q.id,q]));
+  aiWorkshopQuizzes.forEach(q=>{ if(!studentIds.has(q.studentId)) issues.push(`小测 ${q.title||q.id} 找不到学生`); });
+  aiWorkshopQuestions.forEach(q=>{ if(!quizIds.has(q.quizId)) issues.push(`题目 ${q.id} 找不到小测`); });
+  aiWorkshopAnswers.forEach(a=>{
+    if(!questionIds.has(a.questionId)) issues.push(`作答 ${a.id} 找不到题目`);
+    if(!studentIds.has(a.studentId)) issues.push(`作答 ${a.id} 找不到学生`);
+    if(!quizIds.has(a.quizId)) issues.push(`作答 ${a.id} 找不到小测`);
+  });
+  const countMismatches = [];
+  aiWorkshopQuizzes.forEach(q=>{
+    const actual = aiWorkshopQuestions.filter(x=>x.quizId===q.id).length;
+    if(Number(q.questionCount||0)!==actual) countMismatches.push({quizId:q.id,title:q.title||q.id,stored:q.questionCount||0,actual});
+  });
+  aiWorkshopLastCheckResult = {issues,countMismatches,checkedAt:aiWorkshopNow()};
+  renderAiWorkshopStudents();
+}
+function aiWorkshopFixQuestionCount(){
+  aiWorkshopSyncAllQuizQuestionCounts();
+  saveAiWorkshopQuizzes();
+  showToast('questionCount 已按题目数修复');
+  aiWorkshopRunDataCheck();
+}
+function showAiWorkshopPage(){
+  if(!isAdmin){ showToast('仅管理员可访问'); return; }
+  aiWorkshopCurrentStudentId = '';
+  aiWorkshopCurrentQuizId = '';
+  aiWorkshopSyncAllQuizQuestionCounts();
+  saveAiWorkshopQuizzes();
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('parentPage').style.display='none';
+  document.getElementById('profilePage').style.display='none';
+  document.getElementById('adminToggle').style.display='none';
+  const page = document.getElementById('aiWorkshopPage');
+  page.style.display = 'block';
+  page.innerHTML = `
+    <div class="aiw-topbar">
+      <div>
+        <h2>AI提分工坊</h2>
+        <div class="sub">高中数学诊断小测闭环原型</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="admin-btn" onclick="showProfilePage()">返回学员成长系统</button>
+        <button class="admin-btn danger" onclick="doLogout()">退出登录</button>
+      </div>
+    </div>
+    <div class="aiw-wrap">
+      <div class="aiw-card">
+        <div class="aiw-toolbar">
+          <h3 style="margin:0;color:var(--navy)">学生建档与小测草稿</h3>
+          <button class="admin-btn primary" data-testid="aiw-btn-add-student" onclick="aiWorkshopShowStudentModal()">+ 新增学生</button>
+        </div>
+        <div id="aiWorkshopContent"></div>
+      </div>
+    </div>`;
+  renderAiWorkshopStudents();
+}
+function renderAiWorkshopStudents(){
+  const container = document.getElementById('aiWorkshopContent');
+  if(!container) return;
+  const cap = aiWorkshopEstimateStorage();
+  const dataCheck = aiWorkshopLastCheckResult;
+  const students = aiWorkshopStudents.slice().sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+  const summaryHtml = `
+    <div class="aiw-card" style="background:#F8FAFD">
+      <div class="aiw-toolbar">
+        <h3 style="margin:0;color:var(--navy)">数据安全与容量提示</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="admin-btn" data-testid="aiw-btn-export" onclick="aiWorkshopExportBackup()">导出工坊数据</button>
+          <button class="admin-btn" data-testid="aiw-btn-import" onclick="aiWorkshopShowImportModal()">导入工坊数据</button>
+          <button class="admin-btn" data-testid="aiw-btn-check-data" onclick="aiWorkshopRunDataCheck()">检查工坊数据</button>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.8;color:var(--sub)">
+        当前估算占用：<strong>${aiWorkshopEscapeHtml(aiWorkshopFormatSizeFromChars(cap.totalChars))}</strong>（图片约 ${aiWorkshopEscapeHtml(aiWorkshopFormatSizeFromChars(cap.imageChars))}）<br>
+        学生数：${aiWorkshopStudents.length}，小测数：${aiWorkshopQuizzes.length}，题目数：${aiWorkshopQuestions.length}，作答数：${aiWorkshopAnswers.length}，图片数：${cap.imageCount}<br>
+        当前为本地原型存储，图片以 base64 存在浏览器中。数据量较大时可能触发浏览器容量限制。建议每次真实使用后导出备份。
+      </div>
+      ${dataCheck ? `
+        <div style="margin-top:10px;font-size:12px">
+          <div><strong>最近检查时间：</strong>${aiWorkshopEscapeHtml((dataCheck.checkedAt||'').slice(0,19).replace('T',' '))}</div>
+          <div><strong>异常项：</strong>${dataCheck.issues.length ? dataCheck.issues.map(x=>`<div style='color:var(--red)'>${aiWorkshopEscapeHtml(x)}</div>`).join('') : '无'}</div>
+          <div><strong>questionCount 不一致：</strong>${dataCheck.countMismatches.length ? dataCheck.countMismatches.map(x=>`<div style='color:var(--orange)'>${aiWorkshopEscapeHtml(x.title)}：存储 ${x.stored} / 实际 ${x.actual}</div>`).join('') : '无'}</div>
+          ${dataCheck.countMismatches.length ? `<div style="margin-top:8px"><button class="admin-btn" onclick="aiWorkshopFixQuestionCount()">修复 questionCount</button></div>` : ''}
+        </div>` : ''}
+    </div>
+  `;
+  if(!students.length){
+    container.innerHTML = `${summaryHtml}<div class="aiw-empty">暂无学生档案，点击右上角“新增学生”开始建档。</div>`;
+    return;
+  }
+  container.innerHTML = `
+    ${summaryHtml}
+    <div class="aiw-grid header">
+      <div>姓名</div><div>年级</div><div>当前分</div><div>目标分</div><div>训练重点</div><div style="text-align:right">操作</div>
+    </div>
+    ${students.map(s=>`
+      <div class="aiw-grid aiw-row">
+        <div><strong>${aiWorkshopEscapeHtml(s.name || '未命名')}</strong><div style="font-size:11px;color:var(--sub)">${aiWorkshopEscapeHtml(s.studentLevel || '')}</div></div>
+        <div>${aiWorkshopEscapeHtml(s.grade)}</div>
+        <div>${s.currentScore === '' ? '-' : s.currentScore}</div>
+        <div>${s.targetScore === '' ? '-' : s.targetScore}</div>
+        <div>${aiWorkshopEscapeHtml(s.currentFocus || '-')}</div>
+        <div class="aiw-actions">
+          <button class="admin-btn" data-testid="aiw-btn-open-student" data-student-id="${s.id}" onclick="renderAiWorkshopStudentDetail('${s.id}')">详情</button>
+          <button class="admin-btn" data-testid="aiw-btn-edit-student" data-student-id="${s.id}" onclick="aiWorkshopShowStudentModal('${s.id}')">编辑</button>
+          <button class="admin-btn danger" data-testid="aiw-btn-delete-student" data-student-id="${s.id}" onclick="aiWorkshopDeleteStudent('${s.id}')">删除</button>
+        </div>
+      </div>`).join('')}
+  `;
+}
+function aiWorkshopShowStudentModal(studentId=''){
+  const s = studentId ? aiWorkshopStudents.find(x=>x.id===studentId) : null;
+  const v = aiWorkshopNormalizeStudent(s || {});
+  showModal(`
+    <h3>${studentId ? '编辑' : '新增'}AI提分学生档案</h3>
+    <div class="form-row">
+      <div class="form-group"><label>姓名 *</label><input id="aiw_name" value="${aiWorkshopEscapeHtml(v.name || '')}" placeholder="学生姓名"></div>
+      <div class="form-group"><label>年级</label><select id="aiw_grade">${AI_WORKSHOP_GRADES.map(g=>`<option ${v.grade===g?'selected':''}>${g}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>考试方向</label><input id="aiw_exam" value="高考" disabled></div>
+      <div class="form-group"><label>学生层次</label><select id="aiw_level">${AI_WORKSHOP_LEVELS.map(l=>`<option ${v.studentLevel===l?'selected':''}>${l}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>当前数学分数</label><input id="aiw_current_score" type="number" value="${v.currentScore === '' ? '' : v.currentScore}"></div>
+      <div class="form-group"><label>目标数学分数</label><input id="aiw_target_score" type="number" value="${v.targetScore === '' ? '' : v.targetScore}"></div>
+    </div>
+    <div class="form-group"><label>当前薄弱模块</label><input id="aiw_weak_modules" value="${aiWorkshopEscapeHtml(v.weakModules || '')}" placeholder="如：函数、三角、立体几何"></div>
+    <div class="form-group"><label>当前训练重点</label><input id="aiw_current_focus" value="${aiWorkshopEscapeHtml(v.currentFocus || '')}" placeholder="如：函数综合题每日一练"></div>
+    <div class="form-group"><label>备注</label><textarea id="aiw_notes">${aiWorkshopEscapeHtml(v.notes || '')}</textarea></div>
+    <div class="btn-row">
+      <button class="admin-btn" onclick="hideModal()">取消</button>
+      <button class="admin-btn primary" data-testid="aiw-btn-save-student" onclick="createAiWorkshopStudent('${studentId}')">保存</button>
+    </div>
+  `);
+}
+function createAiWorkshopStudent(studentId=''){
+  const name = document.getElementById('aiw_name').value.trim();
+  if(!name){ showToast('请填写姓名'); return; }
+  const now = aiWorkshopNow();
+  const next = aiWorkshopNormalizeStudent({
+    id: studentId || aiWorkshopGenId('stu'),
+    name,
+    grade: document.getElementById('aiw_grade').value,
+    examDirection: '高考',
+    currentScore: aiWorkshopToNumber(document.getElementById('aiw_current_score').value),
+    targetScore: aiWorkshopToNumber(document.getElementById('aiw_target_score').value),
+    studentLevel: document.getElementById('aiw_level').value,
+    weakModules: document.getElementById('aiw_weak_modules').value.trim(),
+    currentFocus: document.getElementById('aiw_current_focus').value.trim(),
+    notes: document.getElementById('aiw_notes').value.trim(),
+    createdAt: studentId ? (aiWorkshopStudents.find(s=>s.id===studentId)?.createdAt || now) : now,
+    updatedAt: now
+  });
+  const idx = aiWorkshopStudents.findIndex(s=>s.id===next.id);
+  if(idx>=0) aiWorkshopStudents[idx] = next;
+  else aiWorkshopStudents.push(next);
+  saveAiWorkshopStudents();
+  hideModal();
+  showToast(studentId ? '学生档案已更新' : '学生档案已创建');
+  if(aiWorkshopCurrentStudentId === next.id) renderAiWorkshopStudentDetail(next.id);
+  else renderAiWorkshopStudents();
+}
+function aiWorkshopDeleteStudent(studentId){
+  const s = aiWorkshopStudents.find(x=>x.id===studentId);
+  if(!s) return;
+  if(!confirm(`确定删除学生「${aiWorkshopEscapeHtml(s.name)}」？`)) return;
+  if(!confirm('请再次确认删除，删除后其小测草稿也会删除且不可恢复。')) return;
+  const quizIds = aiWorkshopQuizzes.filter(q=>q.studentId===studentId).map(q=>q.id);
+  aiWorkshopStudents = aiWorkshopStudents.filter(x=>x.id!==studentId);
+  aiWorkshopQuizzes = aiWorkshopQuizzes.filter(q=>q.studentId!==studentId);
+  quizIds.forEach(id=>aiWorkshopDeleteQuestionsByQuizId(id));
+  aiWorkshopAnswers = aiWorkshopAnswers.filter(a=>a.studentId!==studentId);
+  saveAiWorkshopStudents();
+  saveAiWorkshopQuizzes();
+  saveAiWorkshopQuestions();
+  saveAiWorkshopAnswers();
+  aiWorkshopCurrentStudentId = '';
+  aiWorkshopCurrentQuizId = '';
+  showToast('学生及关联小测已删除');
+  renderAiWorkshopStudents();
+}
+function renderAiWorkshopStudentDetail(studentId){
+  const s = aiWorkshopStudents.find(x=>x.id===studentId);
+  const container = document.getElementById('aiWorkshopContent');
+  if(!container || !s) return;
+  aiWorkshopCurrentStudentId = studentId;
+  const quizzes = aiWorkshopQuizzes.filter(q=>q.studentId===studentId).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  container.innerHTML = `
+    <div class="aiw-toolbar">
+      <button class="admin-btn" onclick="aiWorkshopCurrentStudentId='';renderAiWorkshopStudents()">← 返回学生列表</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="admin-btn" onclick="aiWorkshopShowStudentModal('${s.id}')">编辑学生档案</button>
+        <button class="admin-btn primary" data-testid="aiw-btn-add-quiz" data-student-id="${s.id}" onclick="aiWorkshopShowQuizModal('${s.id}')">+ 新建诊断小测</button>
+      </div>
+    </div>
+    <div class="aiw-card" style="background:var(--light)">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div><strong style="font-size:18px;color:var(--navy)">${aiWorkshopEscapeHtml(s.name)}</strong> <span class="aiw-badge">${aiWorkshopEscapeHtml(s.grade)} · ${aiWorkshopEscapeHtml(s.studentLevel)}</span></div>
+        <div style="font-size:12px;color:var(--sub)">考试方向：${aiWorkshopEscapeHtml(s.examDirection)}</div>
+      </div>
+      <div class="info-grid" style="margin-top:12px">
+        <div class="info-item"><div class="label">当前数学分数</div><div class="value">${s.currentScore===''?'-':s.currentScore}</div></div>
+        <div class="info-item"><div class="label">目标数学分数</div><div class="value">${s.targetScore===''?'-':s.targetScore}</div></div>
+        <div class="info-item"><div class="label">当前薄弱模块</div><div class="value">${aiWorkshopEscapeHtml(s.weakModules||'-')}</div></div>
+        <div class="info-item"><div class="label">当前训练重点</div><div class="value">${aiWorkshopEscapeHtml(s.currentFocus||'-')}</div></div>
+      </div>
+      <div style="font-size:12px;color:var(--sub);margin-top:10px">备注：${aiWorkshopEscapeHtml(s.notes || '-')}</div>
+    </div>
+    <div class="aiw-card">
+      <h3 style="margin:0 0 10px;color:var(--navy)">诊断小测列表</h3>
+      ${quizzes.length ? `
+      <div class="aiw-grid header"><div>小测标题</div><div>知识模块</div><div>知识点</div><div>题量</div><div>状态/创建时间</div><div style="text-align:right">操作</div></div>
+      ${quizzes.map(q=>`
+      <div class="aiw-grid aiw-row">
+        <div>${aiWorkshopEscapeHtml(q.title || '未命名小测')}</div>
+        <div>${aiWorkshopEscapeHtml(q.knowledgeModule || '-')}</div>
+        <div>${aiWorkshopEscapeHtml(q.knowledgePoint || '-')}</div>
+        <div>${q.questionCount || 0}</div>
+        <div><span class="aiw-badge">${aiWorkshopEscapeHtml(q.status)}</span><div style="font-size:11px;color:var(--sub)">${(q.createdAt||'').slice(0,19).replace('T',' ')}</div></div>
+        <div class="aiw-actions">
+          <button class="admin-btn" data-testid="aiw-btn-open-quiz" data-quiz-id="${q.id}" onclick="renderAiWorkshopQuizQuestions('${q.id}')">题目</button>
+          <button class="admin-btn" data-testid="aiw-btn-copy-quiz" data-quiz-id="${q.id}" onclick="aiWorkshopShowCopyQuizModal('${q.id}')">复制</button>
+          <button class="admin-btn" data-testid="aiw-btn-edit-quiz" data-quiz-id="${q.id}" onclick="aiWorkshopShowQuizModal('${s.id}','${q.id}')">编辑</button>
+          <button class="admin-btn danger" data-testid="aiw-btn-delete-quiz" data-quiz-id="${q.id}" onclick="aiWorkshopDeleteQuiz('${q.id}')">删除</button>
+        </div>
+      </div>`).join('')}` : `<div class="aiw-empty">暂无小测草稿，点击“新建诊断小测”开始创建。</div>`}
+    </div>
+  `;
+}
+function aiWorkshopShowQuizModal(studentId, quizId=''){
+  const s = aiWorkshopStudents.find(x=>x.id===studentId);
+  if(!s){ showToast('未找到学生'); return; }
+  const q = quizId ? aiWorkshopQuizzes.find(x=>x.id===quizId) : null;
+  const v = aiWorkshopNormalizeQuiz(q || {studentId:s.id,grade:s.grade,studentLevel:s.studentLevel,status:'草稿'});
+  showModal(`
+    <h3>${quizId ? '编辑' : '新建'}诊断小测草稿</h3>
+    <div class="form-group"><label>小测标题 *</label><input id="aiw_quiz_title" value="${aiWorkshopEscapeHtml(v.title || '')}" placeholder="如：高一函数诊断小测（第1次）"></div>
+    <div class="form-row">
+      <div class="form-group"><label>年级</label><select id="aiw_quiz_grade">${AI_WORKSHOP_GRADES.map(g=>`<option ${v.grade===g?'selected':''}>${g}</option>`).join('')}</select></div>
+      <div class="form-group"><label>考试方向</label><input value="高考" disabled></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>知识模块</label><input id="aiw_quiz_module" value="${aiWorkshopEscapeHtml(v.knowledgeModule || '')}" placeholder="如：函数"></div>
+      <div class="form-group"><label>具体知识点</label><input id="aiw_quiz_topic" value="${aiWorkshopEscapeHtml(v.knowledgePoint || '')}" placeholder="如：二次函数性质"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>学生层次</label><select id="aiw_quiz_level">${AI_WORKSHOP_LEVELS.map(l=>`<option ${v.studentLevel===l?'selected':''}>${l}</option>`).join('')}</select></div>
+      <div class="form-group"><label>题量</label><input id="aiw_quiz_count" type="number" min="0" value="${v.questionCount || 0}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>填空题数量</label><input id="aiw_quiz_fill_count" type="number" min="0" value="${Number(v.questionTypeMix.fillBlank)||0}"></div>
+      <div class="form-group"><label>解答题数量</label><input id="aiw_quiz_answer_count" type="number" min="0" value="${Number(v.questionTypeMix.solution)||0}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>基础题数量</label><input id="aiw_quiz_basic_count" type="number" min="0" value="${Number(v.difficultyMix.basic)||0}"></div>
+      <div class="form-group"><label>中档题数量</label><input id="aiw_quiz_medium_count" type="number" min="0" value="${Number(v.difficultyMix.medium)||0}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>拔高题数量</label><input id="aiw_quiz_hard_count" type="number" min="0" value="${Number(v.difficultyMix.advanced)||0}"></div>
+      <div class="form-group"><label>压轴题数量</label><input id="aiw_quiz_final_count" type="number" min="0" value="${Number(v.difficultyMix.challenge)||0}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>状态</label><select id="aiw_quiz_status">${AI_WORKSHOP_STATUSES.map(st=>`<option ${v.status===st?'selected':''}>${st}</option>`).join('')}</select></div>
+      <div class="form-group"><label>所属学生</label><input value="${aiWorkshopEscapeHtml(s.name)}" disabled></div>
+    </div>
+    <div class="form-group"><label>备注</label><textarea id="aiw_quiz_notes">${aiWorkshopEscapeHtml(v.notes || '')}</textarea></div>
+    <div class="btn-row">
+      <button class="admin-btn" onclick="hideModal()">取消</button>
+      <button class="admin-btn primary" data-testid="aiw-btn-save-quiz" onclick="createAiWorkshopQuiz('${studentId}','${quizId}')">保存小测</button>
+    </div>
+  `);
+}
+function createAiWorkshopQuiz(studentId, quizId=''){
+  const title = document.getElementById('aiw_quiz_title').value.trim();
+  if(!title){ showToast('请填写小测标题'); return; }
+  const now = aiWorkshopNow();
+  const old = quizId ? aiWorkshopQuizzes.find(x=>x.id===quizId) : null;
+  const next = aiWorkshopNormalizeQuiz({
+    id: quizId || aiWorkshopGenId('quiz'),
+    studentId,
+    title,
+    grade: document.getElementById('aiw_quiz_grade').value,
+    examDirection: '高考',
+    knowledgeModule: document.getElementById('aiw_quiz_module').value.trim(),
+    knowledgePoint: document.getElementById('aiw_quiz_topic').value.trim(),
+    studentLevel: document.getElementById('aiw_quiz_level').value,
+    questionCount: Number(document.getElementById('aiw_quiz_count').value) || 0,
+    questionTypeMix: {
+      fillBlank: Number(document.getElementById('aiw_quiz_fill_count').value) || 0,
+      solution: Number(document.getElementById('aiw_quiz_answer_count').value) || 0
+    },
+    difficultyMix: {
+      basic: Number(document.getElementById('aiw_quiz_basic_count').value) || 0,
+      medium: Number(document.getElementById('aiw_quiz_medium_count').value) || 0,
+      advanced: Number(document.getElementById('aiw_quiz_hard_count').value) || 0,
+      challenge: Number(document.getElementById('aiw_quiz_final_count').value) || 0
+    },
+    status: document.getElementById('aiw_quiz_status').value,
+    notes: document.getElementById('aiw_quiz_notes').value.trim(),
+    createdAt: old ? old.createdAt : now,
+    updatedAt: now
+  });
+  const idx = aiWorkshopQuizzes.findIndex(x=>x.id===next.id);
+  if(idx>=0) aiWorkshopQuizzes[idx] = next;
+  else aiWorkshopQuizzes.push(next);
+  saveAiWorkshopQuizzes();
+  hideModal();
+  showToast(quizId ? '小测草稿已更新' : '小测草稿已创建');
+  renderAiWorkshopStudentDetail(studentId);
+}
+function renderAiWorkshopQuizQuestions(quizId){
+  const quiz = aiWorkshopQuizzes.find(q=>q.id===quizId);
+  if(!quiz){ showToast('未找到小测'); return; }
+  const student = aiWorkshopStudents.find(s=>s.id===quiz.studentId);
+  if(!student){ showToast('未找到所属学生'); return; }
+  aiWorkshopCurrentStudentId = student.id;
+  aiWorkshopCurrentQuizId = quizId;
+  aiWorkshopReindexQuestions(quizId);
+  const questions = aiWorkshopGetQuestionsByQuizId(quizId);
+  const container = document.getElementById('aiWorkshopContent');
+  if(!container) return;
+  container.innerHTML = `
+    <div class="aiw-toolbar">
+      <button class="admin-btn" onclick="renderAiWorkshopStudentDetail('${student.id}')">← 返回学生详情</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="admin-btn" data-testid="aiw-btn-grade-quiz" data-quiz-id="${quiz.id}" onclick="renderAiWorkshopQuizGradingPage('${quiz.id}')">作答批改</button>
+        <button class="admin-btn" data-testid="aiw-btn-print-quiz" data-quiz-id="${quiz.id}" onclick="renderAiWorkshopQuizPrintPreview('${quiz.id}','student')">打印预览</button>
+        <button class="admin-btn primary" data-testid="aiw-btn-add-question" data-quiz-id="${quiz.id}" onclick="aiWorkshopShowQuestionModal('${quiz.id}')">+ 新增题目</button>
+      </div>
+    </div>
+    <div class="aiw-card" style="background:var(--light)">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div><strong style="color:var(--navy)">${aiWorkshopEscapeHtml(quiz.title || '未命名小测')}</strong> <span class="aiw-badge">${aiWorkshopEscapeHtml(quiz.status || '草稿')}</span></div>
+        <div style="font-size:12px;color:var(--sub)">学生：${aiWorkshopEscapeHtml(student.name)} · ${aiWorkshopEscapeHtml(student.grade)}</div>
+      </div>
+      <div style="font-size:12px;color:var(--sub);margin-top:8px">知识模块：${aiWorkshopEscapeHtml(quiz.knowledgeModule || '-')}；具体知识点：${aiWorkshopEscapeHtml(quiz.knowledgePoint || '-')}</div>
+    </div>
+    <div class="aiw-card">
+      <h3 style="margin:0 0 10px;color:var(--navy)">题目列表</h3>
+      ${questions.length ? `
+      <div class="aiw-grid header"><div>题号/题型</div><div>知识点</div><div>难度</div><div>分值</div><div>题干摘要</div><div style="text-align:right">操作</div></div>
+      ${questions.map(item=>`
+      <div class="aiw-grid aiw-row">
+        <div>第${item.questionNumber}题 · ${aiWorkshopEscapeHtml(item.questionType)}</div>
+        <div>${aiWorkshopEscapeHtml(item.knowledgePoint || '-')}</div>
+        <div>${aiWorkshopEscapeHtml(item.difficulty || '-')}</div>
+        <div>${Number(item.score)||0}</div>
+        <div>${aiWorkshopEscapeHtml(aiWorkshopFormatQuestionSummary(item.questionText))}</div>
+        <div class="aiw-actions">
+          <button class="admin-btn" data-testid="aiw-btn-question-up" data-question-id="${item.id}" ${item.questionNumber===1?'disabled':''} onclick="aiWorkshopMoveQuestion('${item.id}','up')">上移</button>
+          <button class="admin-btn" data-testid="aiw-btn-question-down" data-question-id="${item.id}" ${item.questionNumber===questions.length?'disabled':''} onclick="aiWorkshopMoveQuestion('${item.id}','down')">下移</button>
+          <button class="admin-btn" data-testid="aiw-btn-edit-question" data-question-id="${item.id}" onclick="aiWorkshopShowQuestionModal('${quiz.id}','${item.id}')">编辑</button>
+          <button class="admin-btn danger" data-testid="aiw-btn-delete-question" data-question-id="${item.id}" onclick="aiWorkshopDeleteQuestion('${item.id}')">删除</button>
+        </div>
+      </div>`).join('')}` : `<div class="aiw-empty">暂无题目，点击“新增题目”开始录入。</div>`}
+    </div>
+  `;
+}
+function aiWorkshopRenderStatsHtml(stats){
+  const pct = stats.fullScore ? ((stats.totalScore / stats.fullScore) * 100).toFixed(1) : '0.0';
+  const renderBucket = (bucket)=>{
+    const entries = Object.entries(bucket);
+    if(!entries.length) return '暂无';
+    return entries.map(([k,v])=>`${aiWorkshopEscapeHtml(k)}：${v.correct}/${v.total}`).join('<br>');
+  };
+  const tagFreq = Object.entries(stats.tagFreq).sort((a,b)=>b[1]-a[1]);
+  return `
+    <div class="aiw-stats-box" id="aiwStatsReport">
+      <div><strong>总题数：</strong>${stats.total}　<strong>已批改题数：</strong>${stats.graded}</div>
+      <div><strong>正确：</strong>${stats.correct}　<strong>错误：</strong>${stats.wrong}　<strong>半对：</strong>${stats.half}　<strong>未作答：</strong>${stats.empty}　<strong>待确认：</strong>${stats.pending}</div>
+      <div><strong>总得分：</strong>${stats.totalScore} / ${stats.fullScore}　<strong>得分率：</strong>${pct}%</div>
+      <div><strong>按题型统计：</strong><br>${renderBucket(stats.byType)}</div>
+      <div><strong>按难度统计：</strong><br>${renderBucket(stats.byDifficulty)}</div>
+      <div><strong>按知识模块统计：</strong><br>${renderBucket(stats.byModule)}</div>
+      <div><strong>按知识点统计：</strong><br>${renderBucket(stats.byPoint)}</div>
+      <div><strong>错因标签频次：</strong><br>${tagFreq.length ? tagFreq.map(([k,v])=>`${aiWorkshopEscapeHtml(k)}：${v}`).join('<br>') : '暂无'}</div>
+      <div><strong>当前最突出3个问题：</strong><br>${stats.topIssues.length ? stats.topIssues.map(x=>aiWorkshopEscapeHtml(x)).join('<br>') : '暂无'}</div>
+    </div>
+  `;
+}
+function renderAiWorkshopQuizGradingPage(quizId){
+  const quiz = aiWorkshopQuizzes.find(q=>q.id===quizId);
+  if(!quiz){ showToast('未找到小测'); return; }
+  const student = aiWorkshopStudents.find(s=>s.id===quiz.studentId);
+  const questions = aiWorkshopGetQuestionsByQuizId(quizId);
+  const hasAnyAnswer = aiWorkshopAnswers.some(a=>a.quizId===quizId && a.studentId===quiz.studentId);
+  if(hasAnyAnswer && quiz.status === '草稿'){
+    quiz.status = '待批改';
+    quiz.updatedAt = aiWorkshopNow();
+    saveAiWorkshopQuizzes();
+  }
+  aiWorkshopCurrentQuizId = quizId;
+  const stats = aiWorkshopComputeQuizStats(quiz.studentId, quiz.id);
+  const container = document.getElementById('aiWorkshopContent');
+  if(!container) return;
+  container.innerHTML = `
+    <div class="aiw-toolbar no-print">
+      <button class="admin-btn" onclick="renderAiWorkshopQuizQuestions('${quiz.id}')">← 返回题目管理</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="admin-btn" data-testid="aiw-btn-complete-quiz" data-quiz-id="${quiz.id}" onclick="aiWorkshopMarkQuizCompleted('${quiz.id}')">标记为已完成</button>
+        <button class="admin-btn primary" onclick="window.print()">打印统计报告</button>
+      </div>
+    </div>
+    <div class="aiw-card">
+      <h3 style="margin-bottom:8px;color:var(--navy)">作答批改 · ${aiWorkshopEscapeHtml(quiz.title || '未命名小测')}</h3>
+      <div style="font-size:13px;line-height:1.7">
+        <div>学生：${aiWorkshopEscapeHtml(student?.name || '-')}（${aiWorkshopEscapeHtml(student?.grade || '-') }）</div>
+        <div>说明：当前图片存储为本地原型方案（base64 + localStorage），正式版将迁移到后端对象存储。</div>
+      </div>
+    </div>
+    ${questions.map((q,idx)=>{
+      const ans = aiWorkshopGetAnswer(quiz.studentId, quiz.id, q.id) || aiWorkshopNormalizeAnswer({studentId:quiz.studentId,quizId:quiz.id,questionId:q.id});
+      const defaultScore = aiWorkshopDefaultScoreByResult(ans.result, Number(q.score)||0);
+      const displayScore = ans.score === '' ? defaultScore : ans.score;
+      return `<div class="aiw-grade-card">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+          <div><strong>第${idx+1}题</strong> · ${aiWorkshopEscapeHtml(q.questionType)} · ${aiWorkshopEscapeHtml(aiWorkshopFormatQuestionSummary(q.questionText))}</div>
+          <div>分值：${Number(q.score)||0}</div>
+        </div>
+        <div style="font-size:12px;color:var(--sub);margin-top:6px">标准答案：${aiWorkshopEscapeHtml(q.standardAnswer || '-')}</div>
+        <div class="form-group"><label>学生答案文本</label><textarea id="aiw_ans_text_${q.id}" data-testid="aiw-answer-text" data-question-id="${q.id}">${aiWorkshopEscapeHtml(ans.studentAnswerText || '')}</textarea></div>
+        <div class="form-group"><label>学生作答图片（jpg/jpeg/png/webp，≤1MB）</label><input type="file" id="aiw_ans_file_${q.id}" data-testid="aiw-answer-image" data-question-id="${q.id}" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onchange="aiWorkshopHandleAnswerImageChange('${q.id}', event)"></div>
+        <div id="aiw_ans_img_hint_${q.id}" style="font-size:12px;color:var(--sub)">${ans.studentAnswerImageName ? '已选择：'+aiWorkshopEscapeHtml(ans.studentAnswerImageName) : '未上传图片'}</div>
+        ${ans.studentAnswerImageData ? `<div style="margin-top:6px"><img src="${ans.studentAnswerImageData}" alt="学生作答图片" style="max-width:220px;border:1px solid var(--border);border-radius:6px"></div>` : ''}
+        <div class="form-row">
+          <div class="form-group"><label>判题结果</label>
+            <select id="aiw_ans_result_${q.id}" data-testid="aiw-answer-result" data-question-id="${q.id}" onchange="aiWorkshopApplyDefaultScore('${q.id}', ${Number(q.score)||0})">
+              ${["正确","错误","半对","未作答","待确认"].map(x=>`<option ${ans.result===x?'selected':''}>${x}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group"><label>得分</label><input id="aiw_ans_score_${q.id}" data-testid="aiw-answer-score" data-question-id="${q.id}" type="number" step="0.5" min="0" value="${displayScore===''?'':Number(displayScore)||0}"></div>
+        </div>
+        <div class="form-group"><label>错因标签（可多选）</label>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;font-size:12px;max-height:120px;overflow-y:auto;padding:8px;border:1px solid var(--border);border-radius:6px">
+            ${AI_WORKSHOP_MISTAKE_TAG_OPTIONS.map(tag=>`<label><input type="checkbox" class="aiw_ans_tag_${q.id}" value="${aiWorkshopEscapeHtml(tag)}" ${(ans.mistakeTags||[]).includes(tag)?'checked':''}> ${aiWorkshopEscapeHtml(tag)}</label>`).join('')}
+          </div>
+        </div>
+        <div class="form-group"><label>老师评语</label><textarea id="aiw_ans_comment_${q.id}" data-testid="aiw-answer-comment" data-question-id="${q.id}">${aiWorkshopEscapeHtml(ans.teacherComment || '')}</textarea></div>
+        <div class="btn-row"><button class="admin-btn primary" data-testid="aiw-btn-save-answer" data-question-id="${q.id}" onclick="aiWorkshopSaveAnswer('${q.id}', ${Number(q.score)||0})">保存本题批改</button></div>
+      </div>`;
+    }).join('')}
+    <div class="aiw-card">
+      <h3 style="margin-bottom:10px;color:var(--navy)">统计报告</h3>
+      ${aiWorkshopRenderStatsHtml(stats)}
+    </div>
+  `;
+}
+function aiWorkshopApplyDefaultScore(questionId, fullScore){
+  const resultEl = document.getElementById(`aiw_ans_result_${questionId}`);
+  const scoreEl = document.getElementById(`aiw_ans_score_${questionId}`);
+  if(!resultEl || !scoreEl) return;
+  const score = aiWorkshopDefaultScoreByResult(resultEl.value, fullScore);
+  if(score !== '') scoreEl.value = score;
+}
+function aiWorkshopHandleAnswerImageChange(questionId, event){
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
+  const hint = document.getElementById(`aiw_ans_img_hint_${questionId}`);
+  const allowed = ['image/jpeg','image/png','image/webp'];
+  if(!allowed.includes(file.type)){
+    showToast('仅支持 jpg/jpeg/png/webp 图片');
+    event.target.value = '';
+    if(hint) hint.textContent = '未上传图片';
+    return;
+  }
+  const maxSize = 1024 * 1024;
+  if(file.size > maxSize){
+    showToast('图片超过1MB，请压缩后再上传');
+    event.target.value = '';
+    if(hint) hint.textContent = '未上传图片';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    let ans = aiWorkshopAnswers.find(a=>a.quizId===aiWorkshopCurrentQuizId && a.questionId===questionId);
+    if(!ans){
+      const quiz = aiWorkshopQuizzes.find(q=>q.id===aiWorkshopCurrentQuizId);
+      ans = aiWorkshopNormalizeAnswer({studentId: quiz?.studentId || '', quizId: aiWorkshopCurrentQuizId, questionId});
+      aiWorkshopAnswers.push(ans);
+    }
+    ans.studentAnswerImageData = String(reader.result || '');
+    ans.studentAnswerImageName = file.name;
+    ans.updatedAt = aiWorkshopNow();
+    saveAiWorkshopAnswers();
+    showToast('图片已保存（本地原型存储）');
+    renderAiWorkshopQuizGradingPage(aiWorkshopCurrentQuizId);
+  };
+  reader.readAsDataURL(file);
+}
+function aiWorkshopSaveAnswer(questionId, fullScore){
+  const quiz = aiWorkshopQuizzes.find(q=>q.id===aiWorkshopCurrentQuizId);
+  if(!quiz) return;
+  const result = document.getElementById(`aiw_ans_result_${questionId}`).value;
+  const scoreRaw = document.getElementById(`aiw_ans_score_${questionId}`).value;
+  const score = scoreRaw === '' ? aiWorkshopDefaultScoreByResult(result, fullScore) : Number(scoreRaw) || 0;
+  const tags = Array.from(document.querySelectorAll(`.aiw_ans_tag_${questionId}:checked`)).map(el=>el.value);
+  const now = aiWorkshopNow();
+  const old = aiWorkshopGetAnswer(quiz.studentId, quiz.id, questionId);
+  const next = aiWorkshopNormalizeAnswer({
+    id: old ? old.id : aiWorkshopGenId('ans'),
+    studentId: quiz.studentId,
+    quizId: quiz.id,
+    questionId,
+    studentAnswerText: document.getElementById(`aiw_ans_text_${questionId}`).value.trim(),
+    studentAnswerImageData: old ? old.studentAnswerImageData : '',
+    studentAnswerImageName: old ? old.studentAnswerImageName : '',
+    result,
+    score,
+    teacherComment: document.getElementById(`aiw_ans_comment_${questionId}`).value.trim(),
+    mistakeTags: tags,
+    aiRecognizedAnswer: old ? old.aiRecognizedAnswer : '',
+    aiJudgment: old ? old.aiJudgment : '',
+    aiErrorStep: old ? old.aiErrorStep : '',
+    aiMistakeTags: old ? old.aiMistakeTags : [],
+    aiDiagnosis: old ? old.aiDiagnosis : '',
+    aiStatus: old ? old.aiStatus : '未识别',
+    createdAt: old ? old.createdAt : now,
+    updatedAt: now
+  });
+  const idx = aiWorkshopAnswers.findIndex(a=>a.id===next.id);
+  if(idx>=0) aiWorkshopAnswers[idx] = next; else aiWorkshopAnswers.push(next);
+  if(quiz.status === '草稿') quiz.status = '待批改';
+  quiz.updatedAt = now;
+  saveAiWorkshopAnswers();
+  saveAiWorkshopQuizzes();
+  showToast('本题批改已保存');
+  renderAiWorkshopQuizGradingPage(quiz.id);
+}
+function aiWorkshopMarkQuizCompleted(quizId){
+  const quiz = aiWorkshopQuizzes.find(q=>q.id===quizId);
+  if(!quiz) return;
+  quiz.status = '已完成';
+  quiz.updatedAt = aiWorkshopNow();
+  saveAiWorkshopQuizzes();
+  showToast('已标记为已完成');
+  renderAiWorkshopQuizGradingPage(quizId);
+}
+function renderAiWorkshopQuizPrintPreview(quizId, mode='student'){
+  const quiz = aiWorkshopQuizzes.find(q=>q.id===quizId);
+  if(!quiz){ showToast('未找到小测'); return; }
+  const student = aiWorkshopStudents.find(s=>s.id===quiz.studentId);
+  const questions = aiWorkshopGetQuestionsByQuizId(quizId);
+  aiWorkshopCurrentQuizId = quizId;
+  aiWorkshopPrintMode = mode === 'teacher' ? 'teacher' : 'student';
+  const container = document.getElementById('aiWorkshopContent');
+  if(!container) return;
+  container.innerHTML = `
+    <div class="aiw-toolbar no-print">
+      <button class="admin-btn" onclick="renderAiWorkshopQuizQuestions('${quizId}')">← 返回题目管理</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="admin-btn" onclick="renderAiWorkshopQuizPrintPreview('${quizId}','${aiWorkshopPrintMode==='student'?'teacher':'student'}')">切换为${aiWorkshopPrintMode==='student'?'教师批改版':'学生作答版'}</button>
+        <button class="admin-btn primary" onclick="window.print()">打印</button>
+      </div>
+    </div>
+    <div class="aiw-card">
+      <h3 style="margin-bottom:8px;color:var(--navy)">打印预览 · ${aiWorkshopEscapeHtml(aiWorkshopGetPrintModeLabel(aiWorkshopPrintMode))}</h3>
+      <div style="font-size:13px;line-height:1.8">
+        <div><strong>小测标题：</strong>${aiWorkshopEscapeHtml(quiz.title || '未命名小测')}</div>
+        <div><strong>学生姓名：</strong>${aiWorkshopEscapeHtml(student?.name || '-')}　<strong>年级：</strong>${aiWorkshopEscapeHtml(student?.grade || quiz.grade || '-')}</div>
+        <div><strong>知识模块：</strong>${aiWorkshopEscapeHtml(quiz.knowledgeModule || '-')}</div>
+        <div><strong>知识点：</strong>${aiWorkshopEscapeHtml(quiz.knowledgePoint || '-')}</div>
+      </div>
+    </div>
+    ${questions.map(item=>`
+      <div class="aiw-question-paper">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div><strong>第${item.questionNumber}题</strong> · ${aiWorkshopEscapeHtml(item.questionType)}</div>
+          <div>分值：${Number(item.score)||0}</div>
+        </div>
+        <div style="margin-top:8px;white-space:pre-wrap">${aiWorkshopEscapeHtml(item.questionText || '')}</div>
+        ${item.latexContent ? `<div style="margin-top:6px;color:#333"><strong>LaTeX：</strong>${aiWorkshopEscapeHtml(item.latexContent)}</div>` : ''}
+        <div class="aiw-answer-area"></div>
+        ${aiWorkshopPrintMode==='teacher' ? `
+          <div style="margin-top:8px;font-size:12px;line-height:1.7">
+            <div><strong>标准答案：</strong>${aiWorkshopEscapeHtml(item.standardAnswer || '-')}</div>
+            <div><strong>解析：</strong>${aiWorkshopEscapeHtml(item.explanation || '-')}</div>
+            <div><strong>诊断目标：</strong>${aiWorkshopEscapeHtml(item.diagnosticPurpose || '-')}</div>
+            <div><strong>考查能力：</strong>${aiWorkshopEscapeHtml(item.testedAbility || '-')}</div>
+            <div><strong>常见错因标签：</strong>${aiWorkshopEscapeHtml((item.commonMistakeTags||[]).join('、') || '-')}</div>
+          </div>` : ''}
+      </div>`).join('')}
+  `;
+}
+function aiWorkshopShowCopyQuizModal(quizId){
+  const quiz = aiWorkshopQuizzes.find(q=>q.id===quizId);
+  if(!quiz){ showToast('未找到小测'); return; }
+  const sourceStudent = aiWorkshopStudents.find(s=>s.id===quiz.studentId);
+  const options = aiWorkshopStudents.filter(s=>s.id!==quiz.studentId);
+  if(!options.length){ showToast('暂无可复制目标学生，请先新增其他学生'); return; }
+  showModal(`
+    <h3>复制小测</h3>
+    <div class="form-group"><label>来源小测</label><input value="${aiWorkshopEscapeHtml(quiz.title || '未命名小测')}" disabled></div>
+    <div class="form-group"><label>来源学生</label><input value="${aiWorkshopEscapeHtml(sourceStudent?.name || '-')}" disabled></div>
+    <div class="form-group"><label>目标学生</label>
+      <select id="aiw_copy_target_student" data-testid="aiw-copy-target-student">
+        ${options.map(s=>`<option value="${s.id}">${aiWorkshopEscapeHtml(s.name)} · ${aiWorkshopEscapeHtml(s.grade)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="btn-row">
+      <button class="admin-btn" onclick="hideModal()">取消</button>
+      <button class="admin-btn primary" data-testid="aiw-btn-confirm-copy-quiz" onclick="aiWorkshopCopyQuizToStudent('${quizId}')">确认复制</button>
+    </div>
+  `);
+}
+function aiWorkshopCopyQuizToStudent(quizId){
+  const quiz = aiWorkshopQuizzes.find(q=>q.id===quizId);
+  if(!quiz){ showToast('未找到小测'); return; }
+  const targetStudentId = document.getElementById('aiw_copy_target_student').value;
+  const targetStudent = aiWorkshopStudents.find(s=>s.id===targetStudentId);
+  if(!targetStudent){ showToast('未找到目标学生'); return; }
+  const now = aiWorkshopNow();
+  const newQuizId = aiWorkshopGenId('quiz');
+  const newQuiz = aiWorkshopNormalizeQuiz({
+    ...quiz,
+    id: newQuizId,
+    studentId: targetStudentId,
+    title: `${quiz.title || '未命名小测'}（复制）`,
+    grade: targetStudent.grade,
+    questionCount: 0,
+    createdAt: now,
+    updatedAt: now
+  });
+  const sourceQuestions = aiWorkshopGetQuestionsByQuizId(quizId);
+  const clonedQuestions = sourceQuestions.map((item,idx)=>aiWorkshopNormalizeQuestion({
+    ...item,
+    id: aiWorkshopGenId('q'),
+    quizId: newQuizId,
+    questionNumber: idx + 1,
+    order: idx + 1,
+    createdAt: now,
+    updatedAt: now
+  }));
+  newQuiz.questionCount = clonedQuestions.length;
+  aiWorkshopQuizzes.push(newQuiz);
+  aiWorkshopQuestions.push(...clonedQuestions);
+  saveAiWorkshopQuizzes();
+  saveAiWorkshopQuestions();
+  hideModal();
+  aiWorkshopCurrentStudentId = targetStudentId;
+  showToast(`已复制到 ${targetStudent.name}，共 ${clonedQuestions.length} 题`);
+  renderAiWorkshopStudentDetail(targetStudentId);
+}
+function aiWorkshopShowQuestionModal(quizId, questionId=''){
+  const quiz = aiWorkshopQuizzes.find(q=>q.id===quizId);
+  if(!quiz){ showToast('未找到小测'); return; }
+  const question = questionId ? aiWorkshopQuestions.find(q=>q.id===questionId) : null;
+  const list = aiWorkshopGetQuestionsByQuizId(quizId);
+  const nextOrder = list.length + 1;
+  const v = aiWorkshopNormalizeQuestion(question || { quizId, order: nextOrder, questionNumber: nextOrder });
+  const checked = new Set(v.commonMistakeTags || []);
+  showModal(`
+    <h3>${questionId ? '编辑' : '新增'}题目</h3>
+    <div class="form-row">
+      <div class="form-group"><label>题型</label><select id="aiw_q_type"><option ${v.questionType==='填空题'?'selected':''}>填空题</option><option ${v.questionType==='解答题'?'selected':''}>解答题</option></select></div>
+      <div class="form-group"><label>排序 order</label><input id="aiw_q_order" type="number" min="1" value="${Number(v.order)||1}"></div>
+    </div>
+    <div class="form-group"><label>题干文本</label><textarea id="aiw_q_text">${aiWorkshopEscapeHtml(v.questionText || '')}</textarea></div>
+    <div class="form-group"><label>LaTeX 内容（仅字段预留）</label><textarea id="aiw_q_latex">${aiWorkshopEscapeHtml(v.latexContent || '')}</textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>知识模块</label><input id="aiw_q_module" value="${aiWorkshopEscapeHtml(v.knowledgeModule || '')}"></div>
+      <div class="form-group"><label>具体知识点</label><input id="aiw_q_point" value="${aiWorkshopEscapeHtml(v.knowledgePoint || '')}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>难度</label><select id="aiw_q_difficulty"><option ${v.difficulty==='基础'?'selected':''}>基础</option><option ${v.difficulty==='中档'?'selected':''}>中档</option><option ${v.difficulty==='拔高'?'selected':''}>拔高</option><option ${v.difficulty==='压轴'?'selected':''}>压轴</option></select></div>
+      <div class="form-group"><label>分值</label><input id="aiw_q_score" type="number" min="0" step="0.5" value="${Number(v.score)||0}"></div>
+    </div>
+    <div class="form-group"><label>标准答案</label><textarea id="aiw_q_answer">${aiWorkshopEscapeHtml(v.standardAnswer || '')}</textarea></div>
+    <div class="form-group"><label>解析</label><textarea id="aiw_q_explanation">${aiWorkshopEscapeHtml(v.explanation || '')}</textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>诊断目标</label><input id="aiw_q_diagnostic" value="${aiWorkshopEscapeHtml(v.diagnosticPurpose || '')}"></div>
+      <div class="form-group"><label>考查能力</label><input id="aiw_q_ability" value="${aiWorkshopEscapeHtml(v.testedAbility || '')}"></div>
+    </div>
+    <div class="form-group">
+      <label>常见错因标签（可多选）</label><input id="aiw_q_mistake_tags" style="display:none" value="">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;font-size:12px;max-height:180px;overflow-y:auto;padding:8px;border:1px solid var(--border);border-radius:6px">
+        ${AI_WORKSHOP_MISTAKE_TAG_OPTIONS.map(tag=>`<label><input type="checkbox" class="aiw_q_mistake_tags" value="${aiWorkshopEscapeHtml(tag)}" ${checked.has(tag)?'checked':''}> ${aiWorkshopEscapeHtml(tag)}</label>`).join('')}
+      </div>
+      <div style="margin-top:8px"><input id="aiw_q_extra_tags" placeholder="额外标签（逗号分隔）" value=""></div>
+    </div>
+    <div class="aiw-card" style="background:#FAFAFA;padding:12px">
+      <div style="font-size:12px;color:var(--sub);margin-bottom:6px">图片与AI预留字段（本阶段不启用）</div>
+      <div class="form-row">
+        <div class="form-group"><label>questionImageData</label><input value="${aiWorkshopEscapeHtml(v.questionImageData || '')}" disabled></div>
+        <div class="form-group"><label>questionImageUrl</label><input value="${aiWorkshopEscapeHtml(v.questionImageUrl || '')}" disabled></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>aiRecognizedQuestion</label><input value="${aiWorkshopEscapeHtml(v.aiRecognizedQuestion || '')}" disabled></div>
+        <div class="form-group"><label>aiRecognitionStatus</label><input value="${aiWorkshopEscapeHtml(v.aiRecognitionStatus || '未识别')}" disabled></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>aiConfidence</label><input value="${aiWorkshopEscapeHtml(v.aiConfidence || '')}" disabled></div>
+        <div class="form-group"><label>teacherConfirmedQuestion</label><input value="${aiWorkshopEscapeHtml(v.teacherConfirmedQuestion || '')}" disabled></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="admin-btn" onclick="hideModal()">取消</button>
+      <button class="admin-btn primary" data-testid="aiw-btn-save-question" onclick="createAiWorkshopQuestion('${quizId}','${questionId}')">保存题目</button>
+    </div>
+  `);
+}
+function createAiWorkshopQuestion(quizId, questionId=''){
+  const questionType = document.getElementById('aiw_q_type').value;
+  const order = Math.max(1, Number(document.getElementById('aiw_q_order').value) || 1);
+  const selectedTags = Array.from(document.querySelectorAll('.aiw_q_mistake_tags:checked')).map(el=>el.value);
+  const extraTags = aiWorkshopParseMistakeTags(document.getElementById('aiw_q_extra_tags').value);
+  const mergedTags = Array.from(new Set([...selectedTags, ...extraTags]));
+  const now = aiWorkshopNow();
+  const old = questionId ? aiWorkshopQuestions.find(q=>q.id===questionId) : null;
+  const next = aiWorkshopNormalizeQuestion({
+    id: questionId || aiWorkshopGenId('q'),
+    quizId,
+    questionType,
+    questionText: document.getElementById('aiw_q_text').value.trim(),
+    latexContent: document.getElementById('aiw_q_latex').value.trim(),
+    standardAnswer: document.getElementById('aiw_q_answer').value.trim(),
+    explanation: document.getElementById('aiw_q_explanation').value.trim(),
+    knowledgeModule: document.getElementById('aiw_q_module').value.trim(),
+    knowledgePoint: document.getElementById('aiw_q_point').value.trim(),
+    difficulty: document.getElementById('aiw_q_difficulty').value,
+    diagnosticPurpose: document.getElementById('aiw_q_diagnostic').value.trim(),
+    testedAbility: document.getElementById('aiw_q_ability').value.trim(),
+    commonMistakeTags: mergedTags,
+    score: Number(document.getElementById('aiw_q_score').value) || 0,
+    order,
+    questionImageData: old ? old.questionImageData : '',
+    questionImageUrl: old ? old.questionImageUrl : '',
+    aiRecognizedQuestion: old ? old.aiRecognizedQuestion : '',
+    aiRecognitionStatus: old ? old.aiRecognitionStatus : '未识别',
+    aiConfidence: old ? old.aiConfidence : '',
+    teacherConfirmedQuestion: old ? old.teacherConfirmedQuestion : '',
+    createdAt: old ? old.createdAt : now,
+    updatedAt: now
+  });
+  const idx = aiWorkshopQuestions.findIndex(q=>q.id===next.id);
+  if(idx>=0) aiWorkshopQuestions[idx] = next;
+  else aiWorkshopQuestions.push(next);
+  aiWorkshopReindexQuestions(quizId);
+  aiWorkshopUpdateQuizQuestionCount(quizId);
+  saveAiWorkshopQuestions();
+  saveAiWorkshopQuizzes();
+  hideModal();
+  showToast(questionId ? '题目已更新' : '题目已创建');
+  renderAiWorkshopQuizQuestions(quizId);
+}
+function aiWorkshopDeleteQuestion(questionId){
+  const q = aiWorkshopQuestions.find(x=>x.id===questionId);
+  if(!q) return;
+  if(!confirm(`确定删除第${q.questionNumber}题？`)) return;
+  if(!confirm('请再次确认删除，删除后不可恢复。')) return;
+  const quizId = q.quizId;
+  aiWorkshopQuestions = aiWorkshopQuestions.filter(x=>x.id!==questionId);
+  aiWorkshopReindexQuestions(quizId);
+  aiWorkshopUpdateQuizQuestionCount(quizId);
+  saveAiWorkshopQuestions();
+  saveAiWorkshopQuizzes();
+  showToast('题目已删除');
+  renderAiWorkshopQuizQuestions(quizId);
+}
+function aiWorkshopDeleteQuiz(quizId){
+  const q = aiWorkshopQuizzes.find(x=>x.id===quizId);
+  if(!q) return;
+  if(!confirm(`确定删除小测「${aiWorkshopEscapeHtml(q.title || '未命名小测')}」？`)) return;
+  if(!confirm('请再次确认删除，删除后不可恢复。')) return;
+  aiWorkshopQuizzes = aiWorkshopQuizzes.filter(x=>x.id!==quizId);
+  aiWorkshopDeleteQuestionsByQuizId(quizId);
+  aiWorkshopAnswers = aiWorkshopAnswers.filter(a=>a.quizId!==quizId);
+  saveAiWorkshopQuizzes();
+  saveAiWorkshopQuestions();
+  saveAiWorkshopAnswers();
+  showToast('小测草稿已删除');
+  aiWorkshopCurrentQuizId = '';
+  if(aiWorkshopCurrentStudentId) renderAiWorkshopStudentDetail(aiWorkshopCurrentStudentId);
+  else renderAiWorkshopStudents();
+}
+
 // ===== 点击弹窗外部关闭 =====
 document.getElementById('modalOverlay').addEventListener('click', function(e){
   if(e.target === this) hideModal();
@@ -1956,6 +3153,7 @@ document.getElementById('modalOverlay').addEventListener('click', function(e){
 
 // ===== 初始化 =====
 loadData();
+aiWorkshopLoadData();
 checkUrlParams();
 </script>
 </body>
