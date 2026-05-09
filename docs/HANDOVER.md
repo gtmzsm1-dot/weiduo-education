@@ -3,6 +3,11 @@
 > **本文档原名《AI运维交接文档》，2026-05-09 归档进 git 时改名为 HANDOVER.md**
 
 > **版本**: 2026-05-09 V1
+> **关联文档**:
+> - 技术细节:本文档(HANDOVER.md)
+> - 开发环境:`docs/dev-env-notes.md`
+> - 变更历史:`docs/changelog.md`
+> - **产品方向决策:`docs/PRODUCT_PRINCIPLES.md`**(新功能设计前必读)
 > **编写者**: WorkBuddy AI 助手
 > **目标读者**: 接替本项目的 AI Agent
 
