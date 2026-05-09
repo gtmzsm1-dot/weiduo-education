@@ -723,7 +723,7 @@ function loadData(){
 }
 
 function saveData(){
-  localStorage.setItem('weiduo_students', JSON.stringify(allStudents));
+  safeSetItem('weiduo_students', JSON.stringify(allStudents), { silent: false, description: "学员档案数据" });
 }
 
 function genId(){ return 'stu_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
@@ -2052,7 +2052,7 @@ function backupData(){
     data: allStudents
   };
   const key = 'weiduo_backup_' + new Date().toISOString().split('T')[0];
-  localStorage.setItem(key, JSON.stringify(backup));
+  safeSetItem(key, JSON.stringify(backup), { silent: false, description: "每日备份" });
   showToast('✅ 备份完成：' + key);
   // 同时导出文件
   exportData();
