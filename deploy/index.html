@@ -2277,22 +2277,22 @@ function aiWorkshopLoadData(){
   aiWorkshopSaveMeta();
 }
 function aiWorkshopSaveMeta(){
-  localStorage.setItem(AI_WORKSHOP_META_KEY, JSON.stringify({ version:'v1-p1', updatedAt: aiWorkshopNow() }));
+  safeSetItem(AI_WORKSHOP_META_KEY, JSON.stringify({ version:'v1-p1', updatedAt: aiWorkshopNow() }), { silent: true, description: '工坊元数据' });
 }
 function saveAiWorkshopStudents(){
-  localStorage.setItem(AI_WORKSHOP_STUDENTS_KEY, JSON.stringify(aiWorkshopStudents));
+  safeSetItem(AI_WORKSHOP_STUDENTS_KEY, JSON.stringify(aiWorkshopStudents), { silent: true, description: '工坊学生列表' });
   aiWorkshopSaveMeta();
 }
 function saveAiWorkshopQuizzes(){
-  localStorage.setItem(AI_WORKSHOP_QUIZZES_KEY, JSON.stringify(aiWorkshopQuizzes));
+  safeSetItem(AI_WORKSHOP_QUIZZES_KEY, JSON.stringify(aiWorkshopQuizzes), { silent: true, description: '工坊小测列表' });
   aiWorkshopSaveMeta();
 }
 function saveAiWorkshopQuestions(){
-  localStorage.setItem(AI_WORKSHOP_QUESTIONS_KEY, JSON.stringify(aiWorkshopQuestions));
+  safeSetItem(AI_WORKSHOP_QUESTIONS_KEY, JSON.stringify(aiWorkshopQuestions), { silent: true, description: '工坊题目列表' });
   aiWorkshopSaveMeta();
 }
 function saveAiWorkshopAnswers(){
-  localStorage.setItem(AI_WORKSHOP_ANSWERS_KEY, JSON.stringify(aiWorkshopAnswers));
+  safeSetItem(AI_WORKSHOP_ANSWERS_KEY, JSON.stringify(aiWorkshopAnswers), { silent: true, description: '工坊作答记录' });
   aiWorkshopSaveMeta();
 }
 function aiWorkshopGetQuestionsByQuizId(quizId){
