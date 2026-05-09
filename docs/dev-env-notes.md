@@ -56,12 +56,37 @@ wrapper 自动完成以下操作：
 - `ls /Users/chenck/.workbuddy/binaries/node/versions/22.12.0/bin/` 是否存在
 - 如果路径变了，更新 `scripts/playwright-cli.sh` 中的 `NODE_BIN_DIR`
 
-## UI 操作的合规要求(2026-05-09 补充)
+## UI 操作的合规要求(2026-05-09 补充,2026-05-09 v2 细化)
 
-1. **永远不使用 eval、`document.getElementById().value=`、`evaluate` 类命令注入数据**——即使是为了"绕过编码问题"
-2. **冒烟测试前必须在汇报里列"操作计划"**，每条计划项目格式：
-   - wrapper 命令（`open` / `click <ref>` / `fill <ref>` / `localstorage-get` / 等）
-   - 期望结果
-   - 备注
-3. **冒烟测试后必须附"实际执行命令清单"**，与计划对照
-4. **如果遇到 UI 操作受阻**（编码、ref 失效、超时），立即停下汇报根因，**禁止使用任何形式的"绕过"**
+### 严格禁止(操作型 eval)
+
+任何形式的"用代码注入数据 / 触发业务逻辑"都禁止:
+
+- ❌ `eval('aiWorkshopShowStudentModal()')` 然后 JS 改 input.value
+- ❌ `eval('createAiWorkshopStudent(...)')`
+- ❌ `eval('localStorage.setItem(...)')`
+- ❌ `playwright-cli eval` 用于设置表单值、点击按钮、调用业务函数
+
+理由:绕过表单校验、UI 状态机、用户路径,导致冒烟测试无效。
+
+### 有限允许(诊断型 eval,需报备)
+
+如果 UI 操作受阻,**可以**用 eval 做**只读诊断**,但必须遵守:
+
+1. **诊断型 eval 仅限"读取页面状态"**:
+   - ✅ 查询元素是否存在(`document.querySelector('[data-testid=...]')`)
+   - ✅ 读取元素属性(`el.disabled`、`el.value`、`el.dataset`)
+   - ✅ 读取 localStorage(只读)
+2. **不允许改变任何状态**:
+   - ❌ 不许 setItem、不许 click()、不许 dispatchEvent、不许改 value、不许调用业务函数
+3. **执行前必须在汇报里写明**:
+   - 我要 eval 什么命令
+   - 我为什么需要这个诊断(无法用 snapshot 替代的理由)
+   - 期望读到什么
+4. **执行后立即在汇报里附实际命令和结果**
+
+### 受阻时的标准动作
+
+UI 操作失败 → 先用 `snapshot` 查页面状态 → 如 snapshot 不够,**汇报失败现象 + 列计划用什么诊断 eval** → 等用户批准 → 执行诊断 → 报告结论
+
+绝对不允许:UI 失败 → 自己跳到操作型 eval 来"绕过"
