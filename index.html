@@ -2467,11 +2467,14 @@ function aiWorkshopHandleImportBackup(event){
       }
       if(!confirm('导入将替换全部 AI提分工坊数据，是否继续？')) return;
       if(!confirm('请再次确认：该操作不可撤销，是否继续导入？')) return;
-      localStorage.setItem(AI_WORKSHOP_META_KEY, JSON.stringify(data.meta || {version:'v1-p1',updatedAt:aiWorkshopNow()}));
-      localStorage.setItem(AI_WORKSHOP_STUDENTS_KEY, JSON.stringify(data.students));
-      localStorage.setItem(AI_WORKSHOP_QUIZZES_KEY, JSON.stringify(data.quizzes));
-      localStorage.setItem(AI_WORKSHOP_QUESTIONS_KEY, JSON.stringify(data.questions));
-      localStorage.setItem(AI_WORKSHOP_ANSWERS_KEY, JSON.stringify(data.answers));
+      const success = safeBatchSetItem([
+        {key: AI_WORKSHOP_META_KEY, value: JSON.stringify(data.meta || {version:'v1-p1',updatedAt:aiWorkshopNow()}), description: '工坊元数据'},
+        {key: AI_WORKSHOP_STUDENTS_KEY, value: JSON.stringify(data.students), description: '工坊学生'},
+        {key: AI_WORKSHOP_QUIZZES_KEY, value: JSON.stringify(data.quizzes), description: '工坊小测'},
+        {key: AI_WORKSHOP_QUESTIONS_KEY, value: JSON.stringify(data.questions), description: '工坊题目'},
+        {key: AI_WORKSHOP_ANSWERS_KEY, value: JSON.stringify(data.answers), description: '工坊作答记录'},
+      ], {description: '导入工坊数据'});
+      if(!success) return;
       aiWorkshopLoadData();
       hideModal();
       showToast('工坊数据导入成功');
