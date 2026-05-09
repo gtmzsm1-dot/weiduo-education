@@ -214,3 +214,29 @@ click <ref of student card>
 # 现在可以编辑
 click '[data-testid="main-btn-edit-student"]'
 ```
+
+### 第三类 eval:环境配置(2026-05-09 v4 补充)
+
+除"操作型(禁)"和"诊断型(限)"外,新增第三类:
+
+#### 环境配置型 eval
+
+用于**模拟测试条件**,不操作业务数据、不绕过业务流程。
+
+**典型场景**:
+- 注入大体积占位字符串到 `__test_*__` 前缀 key(模拟 localStorage 爆满)
+- 设置/清除元数据 key 的值(模拟"7 天未备份"等时间相关条件)
+- 清理测试残留(`removeItem('__test_*__')`)
+
+**允许范围**:
+- key 前缀必须是 `__test_*__` 或 `weiduo_*`(元数据)/ `ai_workshop_v1_*meta`
+- **绝对不允许**操作业务数据 key(`weiduo_students`、`ai_workshop_v1_students` 等)
+
+**报备要求**:
+- 首次使用某个 key 时必须报备
+- 报备格式:列出 key 名 + 操作 + 用途
+- owner 一次批准后,同 key 同操作可重复使用
+
+**清理要求**:
+- 测试结束必须清理(removeItem)
+- 不允许"留到下次复用"
