@@ -442,6 +442,127 @@ let aiWorkshopCurrentQuizId = '';
 let aiWorkshopPrintMode = 'student';
 let aiWorkshopLastCheckResult = null;
 
+/* ===== localStorage 安全写入封装 ===== */
+// Layer 1: 单次写入保护
+function safeSetItem(key, value, options = {}) {
+  const { silent = false, warnAt = 4 * 1024 * 1024, description = '' } = options;
+  try {
+    localStorage.setItem(key, value);
+    // 写入成功后异步检查总占用
+    const _throttleCheck = (function() {
+      let lastWarnTime = 0;
+      return function() {
+        const now = Date.now();
+        if (now - lastWarnTime < 30 * 60 * 1000) return; // 30分钟内不重复弹
+        lastWarnTime = now;
+        let total = 0;
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            const v = localStorage.getItem(k);
+            total += (k ? k.length : 0) + (v ? v.length : 0);
+          }
+        } catch (_) { /* 估算失败则跳过 */ }
+        if (total >= warnAt) {
+          const usedMB = (total / 1024 / 1024).toFixed(1);
+          setTimeout(() => {
+            showToast(`⚠️ 存储空间使用已达 ${usedMB}MB，接近浏览器上限(5MB)。建议立即导出备份。`);
+          }, 0);
+        }
+      };
+    })();
+    if (!silent) _throttleCheck();
+    return true;
+  } catch (err) {
+    if (err.name === 'QuotaExceededError' || err.code === 22 || err.code === 1014) {
+      if (!silent) {
+        const name = description || key;
+        showModal(`
+          <h3 style="color:var(--red)">💾 存储空间已满</h3>
+          <p>存储「${name}」失败，localStorage 已达浏览器上限（通常 5MB）。</p>
+          <p>请立即操作：</p>
+          <p>1. 点击"立即导出"备份当前数据</p>
+          <p>2. 联系管理员减少历史数据</p>
+          <p style="margin-top:12px;padding:8px;background:#fff3cd;border-radius:4px">本次操作未保存，请重试。</p>
+          <div class="btn-row">
+            <button class="admin-btn primary" onclick="exportData();hideModal()">立即导出</button>
+            <button class="admin-btn" onclick="hideModal()">我知道了</button>
+          </div>
+        `);
+      }
+      return false;
+    }
+    // 非配额异常：重新抛出
+    throw err;
+  }
+}
+// Layer 2: 批量写入保护（原子语义）
+function safeBatchSetItem(entries, options = {}) {
+  const { atomic = true, description = '批量写入' } = options;
+  // 先记录旧值
+  const rollbackMap = {};
+  for (const entry of entries) {
+    const oldVal = (function() {
+      try { return localStorage.getItem(entry.key); } catch(_) { return null; }
+    })();
+    rollbackMap[entry.key] = oldVal; // null 表示 key 原本不存在
+  }
+  // 逐个写入
+  const writtenKeys = [];
+  for (const entry of entries) {
+    try {
+      localStorage.setItem(entry.key, entry.value);
+      writtenKeys.push(entry.key);
+    } catch (err) {
+      if (err.name === 'QuotaExceededError' || err.code === 22 || err.code === 1014) {
+        // 回滚已写入的
+        if (atomic) {
+          for (const k of writtenKeys) {
+            try {
+              if (rollbackMap[k] === null) {
+                localStorage.removeItem(k);
+              } else {
+                localStorage.setItem(k, rollbackMap[k]);
+              }
+            } catch(_) { /* 回滚失败也不影响主流程 */ }
+          }
+        }
+        showModal(`
+          <h3 style="color:var(--red)">💾 存储空间不足</h3>
+          <p>${description}失败：存储空间不足。</p>
+          <p style="margin-top:8px;padding:8px;background:#e8f4e8;border-radius:4px">已恢复到操作前状态，数据未受影响。</p>
+          <p>请先导出备份后重试。</p>
+          <div class="btn-row">
+            <button class="admin-btn primary" onclick="exportData();hideModal()">立即导出</button>
+            <button class="admin-btn" onclick="hideModal()">我知道了</button>
+          </div>
+        `);
+        return false;
+      }
+      throw err;
+    }
+  }
+  // 全部成功后容量预警检查
+  (function() {
+    try {
+      let total = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        const v = localStorage.getItem(k);
+        total += (k ? k.length : 0) + (v ? v.length : 0);
+      }
+      if (total >= 4 * 1024 * 1024) {
+        const usedMB = (total / 1024 / 1024).toFixed(1);
+        setTimeout(() => {
+          showToast(`⚠️ 存储空间使用已达 ${usedMB}MB，接近浏览器上限(5MB)。建议立即导出备份。`);
+        }, 0);
+      }
+    } catch(_) {}
+  })();
+  return true;
+}
+/* ===== 安全写入封装结束 ===== */
+
 function val(v){ return (v===undefined || v===null || String(v).trim()==='') ? EMPTY_TEXT : String(v); }
 function maskPhone(phone){
   const raw = String(phone || '');
