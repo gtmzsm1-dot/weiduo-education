@@ -83,6 +83,19 @@
 - `renderParentProfile()` — 家长视图
 - `exportData()` / `handleImport()` — 数据导入导出
 
+**主系统 data-testid 一览**（2026-05-09 新增,覆盖批次 2 冒烟范围）：
+
+| data-testid | 按钮文字 | 功能 | 行号(index.html) |
+|---|---|---|---|
+| `main-btn-backup` | 💿 手动备份 | 触发 backupData() | 326 |
+| `main-btn-add-student` | ＋ 新增学生 | 打开新增学员弹窗 | 370 |
+| `main-btn-edit-student` | ✏️ 编辑 | 打开编辑学员弹窗 | 1115 |
+| `main-btn-save-student` | 确认添加 | 保存新增学员 | 1712 |
+| `main-btn-delete-student` | 🗑️ 删除学生 | 删除学员(连续 2 次 confirm) | 1829 |
+| `main-btn-save-edit` | 保存修改 | 保存编辑后的学员 | 1831 |
+
+**注意**:主系统按钮的 data-testid 前缀为 `main-`，与 AI 工坊的 `aiw-` 前缀区分。
+
 ### 2.2 AI提分工坊 V1
 
 **核心能力**：

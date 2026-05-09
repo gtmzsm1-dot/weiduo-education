@@ -323,7 +323,7 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
     <div class="admin-btn-row">
       <button class="admin-btn primary" onclick="exportData()">📥 导出全部数据</button>
       <button class="admin-btn" onclick="showImportModal()">📤 批量导入</button>
-      <button class="admin-btn" onclick="backupData()">💿 手动备份</button>
+      <button class="admin-btn" onclick="backupData()" data-testid="main-btn-backup">💿 手动备份</button>
     </div>
   </div>
   
@@ -367,7 +367,7 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
       <div class="section-title">在读学员</div>
       <div class="sidebar-list" id="sidebarList"></div>
       <div class="sidebar-add" id="addStudentBtn" style="display:none">
-        <button onclick="showAddStudentModal()">＋ 新增学生</button>
+        <button onclick="showAddStudentModal()" data-testid="main-btn-add-student">＋ 新增学生</button>
       </div>
     </div>
     <div class="main" id="mainContent">
@@ -1112,7 +1112,7 @@ function showProfile(idx){
           <span>${maskPhone(s.phone)}（${val(s.parent)} / ${val(s.relation)}）</span>
         </div>
       </div>
-      ${isAdmin ? `<button class="btn-edit" onclick="showEditModal(${idx})">✏️ 编辑</button>` : ''}
+      ${isAdmin ? `<button class="btn-edit" onclick="showEditModal(${idx})" data-testid="main-btn-edit-student">✏️ 编辑</button>` : ''}
     </div>
 
     <div class="tabs">
@@ -1709,7 +1709,7 @@ function showAddStudentModal(){
     <div class="form-group"><label>备注</label><textarea id="m_remark" placeholder="其他备注"></textarea></div>
     <div class="btn-row">
       <button class="admin-btn" onclick="hideModal()">取消</button>
-      <button class="admin-btn primary" onclick="addStudent()">确认添加</button>
+      <button class="admin-btn primary" onclick="addStudent()" data-testid="main-btn-save-student">确认添加</button>
     </div>
   `);
 }
@@ -1826,9 +1826,9 @@ function showEditModal(idx){
       <div class="form-group"><label>规划老师</label><input id="e_plan_teacher" value="${s.plan.teacher}"></div>
     </div>
     <div class="btn-row">
-      <button class="admin-btn danger" onclick="deleteStudent(${idx})">🗑️ 删除学生</button>
+      <button class="admin-btn danger" onclick="deleteStudent(${idx})" data-testid="main-btn-delete-student">🗑️ 删除学生</button>
       <button class="admin-btn" onclick="hideModal()">取消</button>
-      <button class="admin-btn primary" onclick="saveEdit(${idx})">保存修改</button>
+      <button class="admin-btn primary" onclick="saveEdit(${idx})" data-testid="main-btn-save-edit">保存修改</button>
     </div>
   `);
 }
