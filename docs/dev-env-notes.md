@@ -151,3 +151,40 @@ playwright-cli 0.1.9 的 `click <ref>` 命令默认走 getByRole 路径，在中
 - **不要绕过、不要 eval**
 - 在汇报里指出："按钮 X 缺少 data-testid，无法可靠点击"
 - 由用户决定：是补 testid（代码改动）还是用其他定位方式
+
+## AI 工坊删除操作的对话框序列(2026-05-09 记录)
+
+### 删除学生
+
+点击 `aiw-btn-delete-student` 后,系统会**连续弹出 2 个 confirm 对话框**:
+
+- 第 1 个:"确定删除学生「__test_补冒烟B1__」？"
+- 第 2 个:"请再次确认删除，删除后其小测草稿也会删除且不可恢复。"
+
+playwright-cli 自动化必须连续 `dialog-accept` 两次。
+
+### 删除小测/题目(待确认)
+
+[暂未验证,使用时通过 UI 探索后补充]
+
+## playwright-cli snapshot 的属性可见性(2026-05-09 验证)
+
+### 结论
+
+snapshot YAML 输出**不包含**HTML 属性。任何 `data-*`、`data-testid`、`data-student-id`、`href`、`class`、`id` 等属性在 snapshot 中均不可见。
+
+### 验证细节
+
+- 验证元素:管理员登录页的按钮、AI 工坊页面的按钮(已知有 data-testid)、学生列表(已知有 data-student-id)
+- snapshot 输出中是否能看到 testid:否
+- snapshot 输出中是否能看到其他 data-* 属性:否
+- 验证范围:3 个不同页面的 snapshot,0 个 data- 匹配
+
+### 影响
+
+- 验证元素是否有特定 data-* 属性时,**需要诊断 eval**(只读)
+- 后续合规规则补充:先 snapshot 再决定是否需要 eval 这一原则仍然有效,但需注意 **snapshot 主要用于查看元素树结构和文本内容,不能用于属性查询**
+
+### 在什么场景下应该用诊断 eval
+
+当需要确认元素的 data-* 属性是否存在/具体值时,snapshot 不够,**直接报备诊断 eval**。
