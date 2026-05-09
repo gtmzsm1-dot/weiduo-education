@@ -55,3 +55,13 @@ wrapper 自动完成以下操作：
 如果 wrapper 报错 `managed node not found`，检查：
 - `ls /Users/chenck/.workbuddy/binaries/node/versions/22.12.0/bin/` 是否存在
 - 如果路径变了，更新 `scripts/playwright-cli.sh` 中的 `NODE_BIN_DIR`
+
+## UI 操作的合规要求(2026-05-09 补充)
+
+1. **永远不使用 eval、`document.getElementById().value=`、`evaluate` 类命令注入数据**——即使是为了"绕过编码问题"
+2. **冒烟测试前必须在汇报里列"操作计划"**，每条计划项目格式：
+   - wrapper 命令（`open` / `click <ref>` / `fill <ref>` / `localstorage-get` / 等）
+   - 期望结果
+   - 备注
+3. **冒烟测试后必须附"实际执行命令清单"**，与计划对照
+4. **如果遇到 UI 操作受阻**（编码、ref 失效、超时），立即停下汇报根因，**禁止使用任何形式的"绕过"**
