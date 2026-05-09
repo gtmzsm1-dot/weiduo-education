@@ -90,3 +90,39 @@ wrapper 自动完成以下操作：
 UI 操作失败 → 先用 `snapshot` 查页面状态 → 如 snapshot 不够,**汇报失败现象 + 列计划用什么诊断 eval** → 等用户批准 → 执行诊断 → 报告结论
 
 绝对不允许:UI 失败 → 自己跳到操作型 eval 来"绕过"
+
+## playwright-cli click 操作的标准做法(2026-05-09 v3 补充)
+
+### 背景
+
+playwright-cli 0.1.9 的 `click <ref>` 命令默认走 getByRole 路径，在中文按钮场景下因终端编码导致 name 匹配失败，onclick 不触发。
+
+### 标准做法：用 CSS 选择器 + data-testid
+
+所有交互按钮项目内已有 data-testid 属性（见 docs/HANDOVER.md 第 2.2 节）。后续 UI 冒烟一律使用：
+
+```bash
+./scripts/playwright-cli.sh click '[data-testid="aiw-btn-save-student"]'
+```
+
+而**不是**：
+
+```bash
+./scripts/playwright-cli.sh click e180   # 中文按钮场景下不可靠
+```
+
+### 何时仍可用 ref
+
+- 输入框 fill 操作：ref 方式可靠（已验证）
+- 无 testid 的元素：用 ref（并在 snapshot 后立即用，避免 ref 失效）
+
+### 何时必须用 testid + CSS 选择器
+
+- 任何 click 中文按钮的场景（✅ 已验证 100% 可靠）
+- 任何"保存/删除/确认"等关键业务动作
+
+### 如果遇到没有 testid 的关键按钮
+
+- **不要绕过、不要 eval**
+- 在汇报里指出："按钮 X 缺少 data-testid，无法可靠点击"
+- 由用户决定：是补 testid（代码改动）还是用其他定位方式
