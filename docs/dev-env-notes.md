@@ -22,3 +22,36 @@ NODE_OPTIONS= playwright-cli open <url>
 ### 适用范围
 - 如果是用 managed node（`/Users/chenck/.workbuddy/binaries/node/versions/22.12.0/bin/node`）运行，也可能有此问题
 - 如果在其他机器上复现，检查 `echo $NODE_OPTIONS` 是否有值
+
+### 适用范围
+
+## playwright-cli 调用方式(2026-05-09 更新)
+
+从阶段 2 开始，**所有 UI 验证一律走 wrapper**，不要再直接 `playwright-cli ...` 也不要手动加 `NODE_OPTIONS=`。
+
+### 标准调用方式
+
+```bash
+# 从 repo 根目录执行
+./scripts/playwright-cli.sh open http://localhost:8123/deploy/index.html?admin=1
+./scripts/playwright-cli.sh snapshot
+./scripts/playwright-cli.sh click e15
+./scripts/playwright-cli.sh fill e17 "weiduo2026"
+./scripts/playwright-cli.sh localstorage-get ai_workshop_v1_questions
+./scripts/playwright-cli.sh screenshot
+./scripts/playwright-cli.sh close
+```
+
+### 原理
+
+wrapper 自动完成以下操作：
+1. 清空 `NODE_OPTIONS`（绕过 `--use-system-ca` 冲突）
+2. 将 managed node 路径（`/Users/chenck/.workbuddy/binaries/node/versions/22.12.0/bin`）置入 `PATH` 首位
+3. 透传所有参数给 `playwright-cli`
+4. 如果 managed node 路径不存在，输出清晰错误提示
+
+### 故障排查
+
+如果 wrapper 报错 `managed node not found`，检查：
+- `ls /Users/chenck/.workbuddy/binaries/node/versions/22.12.0/bin/` 是否存在
+- 如果路径变了，更新 `scripts/playwright-cli.sh` 中的 `NODE_BIN_DIR`
