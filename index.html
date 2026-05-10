@@ -1932,8 +1932,10 @@ async function exportEncryptedData() {
 }
 
 async function loadAndDecryptStudent(archiveCode) {
-  const url = 'data/students-encrypted.json?t=' + Date.now();
-  const response = await fetch(url);
+  // data/ 在 repo 根目录,相对于 deploy/index.html 是 ../data/
+  const base = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
+  const dataUrl = base + '/../data/students-encrypted.json?t=' + Date.now();
+  const response = await fetch(dataUrl);
   if (!response.ok) throw new Error('无法加载档案数据,请检查网络连接');
   const data = await response.json();
   const encryptedBlob = data.students[archiveCode];
