@@ -56,6 +56,44 @@ wrapper 自动完成以下操作：
 - `ls /Users/chenck/.workbuddy/binaries/node/versions/22.12.0/bin/` 是否存在
 - 如果路径变了，更新 `scripts/playwright-cli.sh` 中的 `NODE_BIN_DIR`
 
+## Git Hooks
+
+仓库预提交(pre-commit)hook 执行以下检查：
+1. **SYNC 检查**：`index.html` 和 `deploy/index.html` 必须同步
+2. **语法检查**：用 `node --check` 验证 `<script>` 块中 JS 语法
+
+### 安装
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+### NODE_OPTIONS 兼容
+
+hook 内部已注入 `NODE_OPTIONS=""` 绕过本机 node 配置冲突（`--use-system-ca`）。
+见上方 NODE_OPTIONS 冲突章节。
+
+### 手动验证（在已安装 hook 的仓库中）
+
+```bash
+# 验证 SYNC 拦截
+echo "modified" > /tmp/test-sync && cp /tmp/test-sync index.html
+.git/hooks/pre-commit  # 应报 SYNC 错误
+
+# 验证语法拦截
+cp index.html deploy/index.html
+python3 -c "
+text = open('index.html').read()
+text = text.replace('<script>', '<script>\\nconst __test_INVALID__ = ;', 1)
+open('index.html','w').write(text)
+"
+.git/hooks/pre-commit  # 应报 JS syntax error
+
+# 正常提交通过
+git checkout -- index.html deploy/index.html  # 恢复
+.git/hooks/pre-commit  # 应 exit 0
+```
+
 ## UI 操作的合规要求(2026-05-09 补充,2026-05-09 v2 细化)
 
 ### 严格禁止(操作型 eval)
