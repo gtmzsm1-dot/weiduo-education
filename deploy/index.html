@@ -727,9 +727,21 @@ function saveData(){
 }
 
 function genId(){ return 'stu_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
-function genCode(){ 
-  const num = (allStudents.length + 1).toString().padStart(4,'0');
-  return 'WD2026' + num;
+function genCode() {
+  const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 31 字符,无 0/O/1/I/l
+  const LENGTH = 10;
+  const arr = new Uint8Array(LENGTH);
+  for (let attempt = 0; attempt < 10; attempt++) {
+    crypto.getRandomValues(arr);
+    let code = '';
+    for (let i = 0; i < LENGTH; i++) {
+      code += ALPHABET[arr[i] % ALPHABET.length];
+    }
+    if (!allStudents.some(s => s.archiveCode === code)) {
+      return code;
+    }
+  }
+  throw new Error('genCode: 连续 10 次生成均碰撞,localStorage 异常');
 }
 
 // ===== 登录逻辑 =====
@@ -751,6 +763,14 @@ function doLogin(){
   currentStudent = student;
   isAdmin = false;
   showProfilePage();
+  // 登录成功后清除 URL 中的 code 参数,防止历史/书签/分享链接泄露
+  if (window.history && window.history.replaceState) {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('code')) {
+      url.searchParams.delete('code');
+      window.history.replaceState({}, document.title, url.toString());
+    }
+  }
 }
 
 function doAdminLogin(){
@@ -761,6 +781,7 @@ function doAdminLogin(){
     currentStudent = null;
     errEl.textContent='';
     showProfilePage();
+    migrateLegacyArchiveCodes();
     checkBackupReminder();
   } else {
     errEl.textContent='密码错误';
@@ -779,6 +800,22 @@ function doLogout(){
   document.getElementById('archiveCode').value='';
   document.getElementById('adminPassword').value='';
   document.getElementById('errorMsg').textContent='';
+}
+
+// ===== 旧档案码迁移 =====
+function migrateLegacyArchiveCodes() {
+  const LEGACY_PATTERN = /^WD\d{8}$/; // 旧格式:WD + 8 位数字
+  let migrated = 0;
+  for (const s of allStudents) {
+    if (LEGACY_PATTERN.test(s.archiveCode)) {
+      s.archiveCode = genCode();
+      migrated++;
+    }
+  }
+  if (migrated > 0) {
+    saveData();
+    console.log('[migration] ' + migrated + ' legacy archive codes regenerated');
+  }
 }
 
 // ===== 备份提醒 =====
