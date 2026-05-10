@@ -323,7 +323,7 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
     <div class="admin-btn-row">
       <button class="admin-btn primary" onclick="exportData()">📥 导出全部数据</button>
       <button class="admin-btn" onclick="showImportModal()">📤 批量导入</button>
-      <button class="admin-btn" onclick="backupData()">💿 手动备份</button>
+      <button class="admin-btn" onclick="backupData()" data-testid="main-btn-backup">💿 手动备份</button>
     </div>
   </div>
   
@@ -367,7 +367,7 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
       <div class="section-title">在读学员</div>
       <div class="sidebar-list" id="sidebarList"></div>
       <div class="sidebar-add" id="addStudentBtn" style="display:none">
-        <button onclick="showAddStudentModal()">＋ 新增学生</button>
+        <button onclick="showAddStudentModal()" data-testid="main-btn-add-student">＋ 新增学生</button>
       </div>
     </div>
     <div class="main" id="mainContent">
@@ -441,6 +441,127 @@ let aiWorkshopCurrentStudentId = '';
 let aiWorkshopCurrentQuizId = '';
 let aiWorkshopPrintMode = 'student';
 let aiWorkshopLastCheckResult = null;
+
+/* ===== localStorage 安全写入封装 ===== */
+// Layer 1: 单次写入保护
+function safeSetItem(key, value, options = {}) {
+  const { silent = false, warnAt = 4 * 1024 * 1024, description = '' } = options;
+  try {
+    localStorage.setItem(key, value);
+    // 写入成功后异步检查总占用
+    const _throttleCheck = (function() {
+      let lastWarnTime = 0;
+      return function() {
+        const now = Date.now();
+        if (now - lastWarnTime < 30 * 60 * 1000) return; // 30分钟内不重复弹
+        lastWarnTime = now;
+        let total = 0;
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            const v = localStorage.getItem(k);
+            total += (k ? k.length : 0) + (v ? v.length : 0);
+          }
+        } catch (_) { /* 估算失败则跳过 */ }
+        if (total >= warnAt) {
+          const usedMB = (total / 1024 / 1024).toFixed(1);
+          setTimeout(() => {
+            showToast(`⚠️ 存储空间使用已达 ${usedMB}MB，接近浏览器上限(5MB)。建议立即导出备份。`);
+          }, 0);
+        }
+      };
+    })();
+    if (!silent) _throttleCheck();
+    return true;
+  } catch (err) {
+    if (err.name === 'QuotaExceededError' || err.code === 22 || err.code === 1014) {
+      if (!silent) {
+        const name = description || key;
+        showModal(`
+          <h3 style="color:var(--red)">💾 存储空间已满</h3>
+          <p>存储「${name}」失败，localStorage 已达浏览器上限（通常 5MB）。</p>
+          <p>请立即操作：</p>
+          <p>1. 点击"立即导出"备份当前数据</p>
+          <p>2. 联系管理员减少历史数据</p>
+          <p style="margin-top:12px;padding:8px;background:#fff3cd;border-radius:4px">本次操作未保存，请重试。</p>
+          <div class="btn-row">
+            <button class="admin-btn primary" onclick="exportData();hideModal()">立即导出</button>
+            <button class="admin-btn" onclick="hideModal()">我知道了</button>
+          </div>
+        `);
+      }
+      return false;
+    }
+    // 非配额异常：重新抛出
+    throw err;
+  }
+}
+// Layer 2: 批量写入保护（原子语义）
+function safeBatchSetItem(entries, options = {}) {
+  const { atomic = true, description = '批量写入' } = options;
+  // 先记录旧值
+  const rollbackMap = {};
+  for (const entry of entries) {
+    const oldVal = (function() {
+      try { return localStorage.getItem(entry.key); } catch(_) { return null; }
+    })();
+    rollbackMap[entry.key] = oldVal; // null 表示 key 原本不存在
+  }
+  // 逐个写入
+  const writtenKeys = [];
+  for (const entry of entries) {
+    try {
+      localStorage.setItem(entry.key, entry.value);
+      writtenKeys.push(entry.key);
+    } catch (err) {
+      if (err.name === 'QuotaExceededError' || err.code === 22 || err.code === 1014) {
+        // 回滚已写入的
+        if (atomic) {
+          for (const k of writtenKeys) {
+            try {
+              if (rollbackMap[k] === null) {
+                localStorage.removeItem(k);
+              } else {
+                localStorage.setItem(k, rollbackMap[k]);
+              }
+            } catch(_) { /* 回滚失败也不影响主流程 */ }
+          }
+        }
+        showModal(`
+          <h3 style="color:var(--red)">💾 存储空间不足</h3>
+          <p>${description}失败：存储空间不足。</p>
+          <p style="margin-top:8px;padding:8px;background:#e8f4e8;border-radius:4px">已恢复到操作前状态，数据未受影响。</p>
+          <p>请先导出备份后重试。</p>
+          <div class="btn-row">
+            <button class="admin-btn primary" onclick="exportData();hideModal()">立即导出</button>
+            <button class="admin-btn" onclick="hideModal()">我知道了</button>
+          </div>
+        `);
+        return false;
+      }
+      throw err;
+    }
+  }
+  // 全部成功后容量预警检查
+  (function() {
+    try {
+      let total = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        const v = localStorage.getItem(k);
+        total += (k ? k.length : 0) + (v ? v.length : 0);
+      }
+      if (total >= 4 * 1024 * 1024) {
+        const usedMB = (total / 1024 / 1024).toFixed(1);
+        setTimeout(() => {
+          showToast(`⚠️ 存储空间使用已达 ${usedMB}MB，接近浏览器上限(5MB)。建议立即导出备份。`);
+        }, 0);
+      }
+    } catch(_) {}
+  })();
+  return true;
+}
+/* ===== 安全写入封装结束 ===== */
 
 function val(v){ return (v===undefined || v===null || String(v).trim()==='') ? EMPTY_TEXT : String(v); }
 function maskPhone(phone){
@@ -602,13 +723,25 @@ function loadData(){
 }
 
 function saveData(){
-  localStorage.setItem('weiduo_students', JSON.stringify(allStudents));
+  safeSetItem('weiduo_students', JSON.stringify(allStudents), { silent: false, description: "学员档案数据" });
 }
 
 function genId(){ return 'stu_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
-function genCode(){ 
-  const num = (allStudents.length + 1).toString().padStart(4,'0');
-  return 'WD2026' + num;
+function genCode() {
+  const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 31 字符,无 0/O/1/I/l
+  const LENGTH = 10;
+  const arr = new Uint8Array(LENGTH);
+  for (let attempt = 0; attempt < 10; attempt++) {
+    crypto.getRandomValues(arr);
+    let code = '';
+    for (let i = 0; i < LENGTH; i++) {
+      code += ALPHABET[arr[i] % ALPHABET.length];
+    }
+    if (!allStudents.some(s => s.archiveCode === code)) {
+      return code;
+    }
+  }
+  throw new Error('genCode: 连续 10 次生成均碰撞,localStorage 异常');
 }
 
 // ===== 登录逻辑 =====
@@ -630,6 +763,14 @@ function doLogin(){
   currentStudent = student;
   isAdmin = false;
   showProfilePage();
+  // 登录成功后清除 URL 中的 code 参数,防止历史/书签/分享链接泄露
+  if (window.history && window.history.replaceState) {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('code')) {
+      url.searchParams.delete('code');
+      window.history.replaceState({}, document.title, url.toString());
+    }
+  }
 }
 
 function doAdminLogin(){
@@ -640,6 +781,8 @@ function doAdminLogin(){
     currentStudent = null;
     errEl.textContent='';
     showProfilePage();
+    migrateLegacyArchiveCodes();
+    checkBackupReminder();
   } else {
     errEl.textContent='密码错误';
   }
@@ -657,6 +800,55 @@ function doLogout(){
   document.getElementById('archiveCode').value='';
   document.getElementById('adminPassword').value='';
   document.getElementById('errorMsg').textContent='';
+}
+
+// ===== 旧档案码迁移 =====
+function migrateLegacyArchiveCodes() {
+  const LEGACY_PATTERN = /^WD\d{8}$/; // 旧格式:WD + 8 位数字
+  let migrated = 0;
+  for (const s of allStudents) {
+    if (LEGACY_PATTERN.test(s.archiveCode)) {
+      s.archiveCode = genCode();
+      migrated++;
+    }
+  }
+  if (migrated > 0) {
+    saveData();
+    console.log('[migration] ' + migrated + ' legacy archive codes regenerated');
+  }
+}
+
+// ===== 备份提醒 =====
+function checkBackupReminder(){
+  // 稍后提醒检查
+  const snoozed = localStorage.getItem('weiduo_export_reminder_snoozed_at');
+  if(snoozed && Date.now() - Number(snoozed) < 24 * 3600 * 1000) return;
+  
+  const lastExport = localStorage.getItem('weiduo_last_export_at');
+  let message = '';
+  if(!lastExport){
+    message = '您还没有备份过数据。建议立即导出备份，以防意外丢失。\n\n点确定立即导出，点取消稍后提醒。';
+  } else {
+    const days = Math.floor((Date.now() - Number(lastExport)) / (24 * 3600 * 1000));
+    if(days <= 7) return;
+    message = '距您上次备份已超过 ' + days + ' 天。建议立即导出备份，以防意外丢失。\n\n点确定立即导出，点取消稍后提醒。';
+  }
+  
+  // 放弃 default confirm,用 showModal 自定义弹窗
+  showModal(`
+    <h3 style="color:var(--navy)">💾 建议立即备份</h3>
+    <p>${message.replace(/\n/g, '<br>')}</p>
+    <div class="btn-row">
+      <button class="admin-btn primary" onclick="doExportAndRecord();hideModal()">立即导出</button>
+      <button class="admin-btn" onclick="snoozeReminder();hideModal()">稍后提醒</button>
+    </div>
+  `);
+}
+function doExportAndRecord(){
+  exportData();
+}
+function snoozeReminder(){
+  safeSetItem('weiduo_export_reminder_snoozed_at', String(Date.now()), {silent: true, description: '备份提醒暂缓时间'});
 }
 
 // 回车登录
@@ -991,7 +1183,7 @@ function showProfile(idx){
           <span>${maskPhone(s.phone)}（${val(s.parent)} / ${val(s.relation)}）</span>
         </div>
       </div>
-      ${isAdmin ? `<button class="btn-edit" onclick="showEditModal(${idx})">✏️ 编辑</button>` : ''}
+      ${isAdmin ? `<button class="btn-edit" onclick="showEditModal(${idx})" data-testid="main-btn-edit-student">✏️ 编辑</button>` : ''}
     </div>
 
     <div class="tabs">
@@ -1588,7 +1780,7 @@ function showAddStudentModal(){
     <div class="form-group"><label>备注</label><textarea id="m_remark" placeholder="其他备注"></textarea></div>
     <div class="btn-row">
       <button class="admin-btn" onclick="hideModal()">取消</button>
-      <button class="admin-btn primary" onclick="addStudent()">确认添加</button>
+      <button class="admin-btn primary" onclick="addStudent()" data-testid="main-btn-save-student">确认添加</button>
     </div>
   `);
 }
@@ -1705,9 +1897,9 @@ function showEditModal(idx){
       <div class="form-group"><label>规划老师</label><input id="e_plan_teacher" value="${s.plan.teacher}"></div>
     </div>
     <div class="btn-row">
-      <button class="admin-btn danger" onclick="deleteStudent(${idx})">🗑️ 删除学生</button>
+      <button class="admin-btn danger" onclick="deleteStudent(${idx})" data-testid="main-btn-delete-student">🗑️ 删除学生</button>
       <button class="admin-btn" onclick="hideModal()">取消</button>
-      <button class="admin-btn primary" onclick="saveEdit(${idx})">保存修改</button>
+      <button class="admin-btn primary" onclick="saveEdit(${idx})" data-testid="main-btn-save-edit">保存修改</button>
     </div>
   `);
 }
@@ -1921,6 +2113,7 @@ function exportData(){
   a.click();
   URL.revokeObjectURL(url);
   showToast('✅ 数据已导出');
+  safeSetItem('weiduo_last_export_at', String(Date.now()), {silent: true, description: '上次导出时间'});
 }
 
 // ===== 数据备份 =====
@@ -1931,7 +2124,7 @@ function backupData(){
     data: allStudents
   };
   const key = 'weiduo_backup_' + new Date().toISOString().split('T')[0];
-  localStorage.setItem(key, JSON.stringify(backup));
+  safeSetItem(key, JSON.stringify(backup), { silent: false, description: "每日备份" });
   showToast('✅ 备份完成：' + key);
   // 同时导出文件
   exportData();
@@ -2156,22 +2349,22 @@ function aiWorkshopLoadData(){
   aiWorkshopSaveMeta();
 }
 function aiWorkshopSaveMeta(){
-  localStorage.setItem(AI_WORKSHOP_META_KEY, JSON.stringify({ version:'v1-p1', updatedAt: aiWorkshopNow() }));
+  safeSetItem(AI_WORKSHOP_META_KEY, JSON.stringify({ version:'v1-p1', updatedAt: aiWorkshopNow() }), { silent: true, description: '工坊元数据' });
 }
 function saveAiWorkshopStudents(){
-  localStorage.setItem(AI_WORKSHOP_STUDENTS_KEY, JSON.stringify(aiWorkshopStudents));
+  safeSetItem(AI_WORKSHOP_STUDENTS_KEY, JSON.stringify(aiWorkshopStudents), { silent: true, description: '工坊学生列表' });
   aiWorkshopSaveMeta();
 }
 function saveAiWorkshopQuizzes(){
-  localStorage.setItem(AI_WORKSHOP_QUIZZES_KEY, JSON.stringify(aiWorkshopQuizzes));
+  safeSetItem(AI_WORKSHOP_QUIZZES_KEY, JSON.stringify(aiWorkshopQuizzes), { silent: true, description: '工坊小测列表' });
   aiWorkshopSaveMeta();
 }
 function saveAiWorkshopQuestions(){
-  localStorage.setItem(AI_WORKSHOP_QUESTIONS_KEY, JSON.stringify(aiWorkshopQuestions));
+  safeSetItem(AI_WORKSHOP_QUESTIONS_KEY, JSON.stringify(aiWorkshopQuestions), { silent: true, description: '工坊题目列表' });
   aiWorkshopSaveMeta();
 }
 function saveAiWorkshopAnswers(){
-  localStorage.setItem(AI_WORKSHOP_ANSWERS_KEY, JSON.stringify(aiWorkshopAnswers));
+  safeSetItem(AI_WORKSHOP_ANSWERS_KEY, JSON.stringify(aiWorkshopAnswers), { silent: true, description: '工坊作答记录' });
   aiWorkshopSaveMeta();
 }
 function aiWorkshopGetQuestionsByQuizId(quizId){
@@ -2346,11 +2539,14 @@ function aiWorkshopHandleImportBackup(event){
       }
       if(!confirm('导入将替换全部 AI提分工坊数据，是否继续？')) return;
       if(!confirm('请再次确认：该操作不可撤销，是否继续导入？')) return;
-      localStorage.setItem(AI_WORKSHOP_META_KEY, JSON.stringify(data.meta || {version:'v1-p1',updatedAt:aiWorkshopNow()}));
-      localStorage.setItem(AI_WORKSHOP_STUDENTS_KEY, JSON.stringify(data.students));
-      localStorage.setItem(AI_WORKSHOP_QUIZZES_KEY, JSON.stringify(data.quizzes));
-      localStorage.setItem(AI_WORKSHOP_QUESTIONS_KEY, JSON.stringify(data.questions));
-      localStorage.setItem(AI_WORKSHOP_ANSWERS_KEY, JSON.stringify(data.answers));
+      const success = safeBatchSetItem([
+        {key: AI_WORKSHOP_META_KEY, value: JSON.stringify(data.meta || {version:'v1-p1',updatedAt:aiWorkshopNow()}), description: '工坊元数据'},
+        {key: AI_WORKSHOP_STUDENTS_KEY, value: JSON.stringify(data.students), description: '工坊学生'},
+        {key: AI_WORKSHOP_QUIZZES_KEY, value: JSON.stringify(data.quizzes), description: '工坊小测'},
+        {key: AI_WORKSHOP_QUESTIONS_KEY, value: JSON.stringify(data.questions), description: '工坊题目'},
+        {key: AI_WORKSHOP_ANSWERS_KEY, value: JSON.stringify(data.answers), description: '工坊作答记录'},
+      ], {description: '导入工坊数据'});
+      if(!success) return;
       aiWorkshopLoadData();
       hideModal();
       showToast('工坊数据导入成功');

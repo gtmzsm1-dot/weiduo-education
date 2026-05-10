@@ -3,6 +3,11 @@
 > **本文档原名《AI运维交接文档》，2026-05-09 归档进 git 时改名为 HANDOVER.md**
 
 > **版本**: 2026-05-09 V1
+> **关联文档**:
+> - 技术细节:本文档(HANDOVER.md)
+> - 开发环境:`docs/dev-env-notes.md`
+> - 变更历史:`docs/changelog.md`
+> - **产品方向决策:`docs/PRODUCT_PRINCIPLES.md`**(新功能设计前必读)
 > **编写者**: WorkBuddy AI 助手
 > **目标读者**: 接替本项目的 AI Agent
 
@@ -78,6 +83,19 @@
 - `renderParentProfile()` — 家长视图
 - `exportData()` / `handleImport()` — 数据导入导出
 
+**主系统 data-testid 一览**（2026-05-09 新增,覆盖批次 2 冒烟范围）：
+
+| data-testid | 按钮文字 | 功能 | 行号(index.html) |
+|---|---|---|---|
+| `main-btn-backup` | 💿 手动备份 | 触发 backupData() | 326 |
+| `main-btn-add-student` | ＋ 新增学生 | 打开新增学员弹窗 | 370 |
+| `main-btn-edit-student` | ✏️ 编辑 | 打开编辑学员弹窗 | 1115 |
+| `main-btn-save-student` | 确认添加 | 保存新增学员 | 1712 |
+| `main-btn-delete-student` | 🗑️ 删除学生 | 删除学员(连续 2 次 confirm) | 1829 |
+| `main-btn-save-edit` | 保存修改 | 保存编辑后的学员 | 1831 |
+
+**注意**:主系统按钮的 data-testid 前缀为 `main-`，与 AI 工坊的 `aiw-` 前缀区分。
+
 ### 2.2 AI提分工坊 V1
 
 **核心能力**：
@@ -143,6 +161,13 @@
 | **管理员** | URL 加 `?admin=1` → 输入密码 `weiduo2026` | 全部功能 + AI提分工坊 |
 | **家长** | 直接打开 URL（无参数）→ 输入学生档案码 | 只读查看学生档案 |
 | **家长二维码** | 扫码直接进入家长查询页面 | 同上 |
+
+**档案码设计**（2026-05-09 升级）：
+- 档案码 = 10 位高熵随机串，字符集去除歧义字符（0/O/1/I/l），真随机源 `crypto.getRandomValues`
+- 每位 31 种可能 → 31¹⁰ ≈ 8.2 × 10¹⁴ 种组合，枚举不可行
+- 生成时含碰撞检测（循环重试至多 10 次）
+- 已存在的 WD2025xxxx / WD2026xxxx 格式旧码在首次管理员登录时自动迁移为新格式
+- 家长登录成功后立即从 URL 中清除 `?code=` 参数，防止浏览器历史/书签/分享链接泄露
 
 ---
 
