@@ -2040,8 +2040,8 @@ async function doAdminLogin(){
         aiWorkshopLoadData();
       }
     }
-    showProfilePage();
     migrateLegacyArchiveCodes();
+    showProfilePage();
     checkBackupReminder();
   } else {
     errEl.textContent='密码错误';
