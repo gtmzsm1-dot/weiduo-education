@@ -1465,6 +1465,7 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
       <button class="admin-btn primary" onclick="exportData()">📥 导出全部数据</button>
       <button class="admin-btn" onclick="showImportModal()">📤 批量导入</button>
       <button class="admin-btn" onclick="backupData()" data-testid="main-btn-backup">💿 手动备份</button>
+      <button class="admin-btn" onclick="handleCloudSync()" data-testid="main-btn-cloud-sync">☁️ 同步到云端</button>
     </div>
   </div>
   
@@ -1890,6 +1891,90 @@ function genCode() {
   throw new Error('genCode: 连续 10 次生成均碰撞,localStorage 异常');
 }
 
+// ===== 阶段 8:云端加密同步 =====
+const CLOUD_SYNC_SALT = new TextEncoder().encode('weiduo-edu-2026-static-salt');
+const CLOUD_SYNC_ITERATIONS = 100000;
+
+async function encryptStudent(student, archiveCode) {
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(archiveCode), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: CLOUD_SYNC_SALT, iterations: CLOUD_SYNC_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt']
+  );
+  const plaintext = new TextEncoder().encode(JSON.stringify(student));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
+  return {
+    iv: btoa(String.fromCharCode(...iv)),
+    ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext)))
+  };
+}
+
+async function decryptStudent(encryptedBlob, archiveCode) {
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(archiveCode), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: CLOUD_SYNC_SALT, iterations: CLOUD_SYNC_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['decrypt']
+  );
+  const iv = Uint8Array.from(atob(encryptedBlob.iv), function(c){ return c.charCodeAt(0); });
+  const ciphertext = Uint8Array.from(atob(encryptedBlob.ciphertext), function(c){ return c.charCodeAt(0); });
+  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+  return JSON.parse(new TextDecoder().decode(plaintext));
+}
+
+async function exportEncryptedData() {
+  const result = { version: '1.0', updatedAt: new Date().toISOString(), students: {} };
+  for (const student of allStudents) {
+    if (!student.archiveCode) continue;
+    result.students[student.archiveCode] = await encryptStudent(student, student.archiveCode);
+  }
+  return result;
+}
+
+async function loadAndDecryptStudent(archiveCode) {
+  const url = 'data/students-encrypted.json?t=' + Date.now();
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('无法加载档案数据,请检查网络连接');
+  const data = await response.json();
+  const encryptedBlob = data.students[archiveCode];
+  if (!encryptedBlob) throw new Error('档案编号不存在');
+  try {
+    const student = await decryptStudent(encryptedBlob, archiveCode);
+    return { student: student, updatedAt: data.updatedAt };
+  } catch (e) {
+    throw new Error('档案码无效');
+  }
+}
+
+async function handleCloudSync() {
+  try {
+    const data = await exportEncryptedData();
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'students-encrypted.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showModal(
+      '<h3>☁️ 同步到云端</h3>' +
+      '<p>已生成加密数据文件 <code>students-encrypted.json</code>。</p>' +
+      '<p>请执行以下步骤发布给家长：</p>' +
+      '<ol style="text-align:left;line-height:2">' +
+      '<li>将下载的文件放入 repo 的 <code>data/</code> 目录</li>' +
+      '<li>执行 <code>git add data/students-encrypted.json && git commit -m "update: cloud sync data" && git push</code></li>' +
+      '<li>等待 GitHub Pages 自动部署（约 1-2 分钟）</li>' +
+      '</ol>',
+      '<button class="admin-btn primary" onclick="hideModal()">我知道了</button>'
+    );
+  } catch (e) {
+    showToast('同步失败: ' + e.message);
+  }
+}
+
 // ===== 登录逻辑 =====
 function switchLoginMode(mode, tabEl){
   document.querySelectorAll('.login-mode-tab').forEach(t=>t.classList.remove('active'));
@@ -1903,13 +1988,56 @@ function doLogin(){
   const code = document.getElementById('archiveCode').value.trim().toUpperCase();
   const errEl = document.getElementById('errorMsg');
   if(!code){ errEl.textContent='请输入档案编号'; return; }
+  
+  // 阶段 8:先从云端加载(家长路径)
+  errEl.textContent='⏳ 正在加载档案...';
+  doCloudLogin(code, errEl);
+}
+
+async function doCloudLogin(code, errEl){
+  try {
+    const result = await loadAndDecryptStudent(code);
+    currentStudent = normalizeStudent(result.student);
+    isAdmin = false;
+    showProfilePage();
+    // 在家长视图头部显示数据更新时间
+    const cloudTimeEl = document.createElement('div');
+    cloudTimeEl.id = 'cloudDataTime';
+    cloudTimeEl.style.cssText = 'text-align:center;font-size:12px;color:var(--sub);padding:4px;background:#FFF8E1;border-bottom:1px solid var(--gold)';
+    cloudTimeEl.textContent = '📡 档案数据更新于 ' + new Date(result.updatedAt).toLocaleString('zh-CN');
+    document.getElementById('parentPage').insertBefore(cloudTimeEl, document.getElementById('parentPage').firstChild);
+    if (window.history && window.history.replaceState) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('code')) {
+        url.searchParams.delete('code');
+        window.history.replaceState({}, document.title, url.toString());
+      }
+    }
+    return;
+  } catch (e) {
+    // ★ 容错:云端取不到,回退到 localStorage(单机管理员自己也用 ?code= 的场景)
+    doLocalLogin(code, errEl, e.message);
+  }
+}
+
+function doLocalLogin(code, errEl, cloudErrorMsg){
   const student = allStudents.find(s => s.archiveCode === code);
-  if(!student){ errEl.textContent='档案编号不存在，请核对后重试'; return; }
-  errEl.textContent='';
-  currentStudent = student;
-  isAdmin = false;
-  showProfilePage();
-  // 登录成功后清除 URL 中的 code 参数,防止历史/书签/分享链接泄露
+  if(student){
+    errEl.textContent='';
+    currentStudent = student;
+    isAdmin = false;
+    showProfilePage();
+  } else {
+    // 区分"云错误"和"本地也找不到"
+    if(cloudErrorMsg && cloudErrorMsg.indexOf('无法加载') >= 0){
+      errEl.textContent = '档案数据加载失败,请检查网络后重试';
+    } else if(cloudErrorMsg && cloudErrorMsg.indexOf('档案码无效') >= 0){
+      errEl.textContent = '档案码无效';
+    } else {
+      errEl.textContent = '档案编号不存在，请核对后重试';
+    }
+    return;
+  }
   if (window.history && window.history.replaceState) {
     const url = new URL(window.location.href);
     if (url.searchParams.has('code')) {
@@ -3371,6 +3499,10 @@ document.getElementById('modalOverlay').addEventListener('click', function(e){
 });
 
 // ===== 初始化 =====
+// 浏览器兼容性检测: crypto.subtle 用于阶段 8 加密
+if(!window.crypto || !window.crypto.subtle){
+  document.getElementById('errorMsg').textContent = '⚠️ 当前浏览器版本过低,不支持档案加密功能。请使用最新版 Chrome/Safari/Firefox。';
+}
 loadData();
 // aiWorkshopLoadData();
 checkUrlParams();
