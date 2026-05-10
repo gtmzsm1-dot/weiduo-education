@@ -62,3 +62,18 @@ function addStudent(...) {
 
 **记录时间**:2026-05-09,Step 2.1d 故障注入测试发现
 **位置**:index.html addStudent() 及相关 save 类函数
+
+### 二维码列表不会自动重渲染
+
+**现象**:buildQRList 只在 showDashboard 时调用一次。如果 owner 在 dashboard 已渲染后改变了 allStudents(新增学员、archiveCode 变化等),二维码列表保持旧状态,需要 owner 退出重新登录才会刷新。
+
+**当前业务影响**:小。当前流程下 archiveCode 在登录时一次性迁移完成,后续不变。
+
+**建议修复方向**:
+- 在 saveData 成功后触发 buildQRList 重渲染
+- 或在新增/编辑学员的回调里显式调用
+- 或改造为响应式渲染模式
+
+**优先级**:中(不影响当前业务,但属于潜在埋藏问题)
+**记录时间**:2026-05-10,阶段 8 真机测试诊断时识别
+**位置**:index.html doAdminLogin / buildQRList 调用链
