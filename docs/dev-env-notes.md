@@ -56,6 +56,44 @@ wrapper 自动完成以下操作：
 - `ls /Users/chenck/.workbuddy/binaries/node/versions/22.12.0/bin/` 是否存在
 - 如果路径变了，更新 `scripts/playwright-cli.sh` 中的 `NODE_BIN_DIR`
 
+## Git Hooks
+
+仓库预提交(pre-commit)hook 执行以下检查：
+1. **SYNC 检查**：`index.html` 和 `deploy/index.html` 必须同步
+2. **语法检查**：用 `node --check` 验证 `<script>` 块中 JS 语法
+
+### 安装
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+### NODE_OPTIONS 兼容
+
+hook 内部已注入 `NODE_OPTIONS=""` 绕过本机 node 配置冲突（`--use-system-ca`）。
+见上方 NODE_OPTIONS 冲突章节。
+
+### 手动验证（在已安装 hook 的仓库中）
+
+```bash
+# 验证 SYNC 拦截
+echo "modified" > /tmp/test-sync && cp /tmp/test-sync index.html
+.git/hooks/pre-commit  # 应报 SYNC 错误
+
+# 验证语法拦截
+cp index.html deploy/index.html
+python3 -c "
+text = open('index.html').read()
+text = text.replace('<script>', '<script>\\nconst __test_INVALID__ = ;', 1)
+open('index.html','w').write(text)
+"
+.git/hooks/pre-commit  # 应报 JS syntax error
+
+# 正常提交通过
+git checkout -- index.html deploy/index.html  # 恢复
+.git/hooks/pre-commit  # 应 exit 0
+```
+
 ## UI 操作的合规要求(2026-05-09 补充,2026-05-09 v2 细化)
 
 ### 严格禁止(操作型 eval)
@@ -250,4 +288,31 @@ click '[data-testid="main-btn-edit-student"]'
 - ❌ **不能用于"加快开发"**(比如直接预填登录密码、跳过弹窗)——这种场景应该改 UI 流程,不是绕过
 - ✅ **每次新增允许的 key 模式都需要 owner 显式批准**——不允许"既然 weiduo_ 前缀允许,我推断 ai_workshop_v1_ 前缀也允许"
 
-如对某次使用是否合规存疑,**默认禁止 + 报备等批准**,而不是"先用着看"。
+## 测试环境数据状态意识(2026-05-10 补充)
+
+### 教训背景
+
+阶段 6.2 性能优化冒烟时,使用了 hardcoded 默认 archiveCode `WD20251008` 测试家长视图——但生产环境该 archiveCode 已被 migrateLegacyArchiveCodes 改写。测试在本地 pass 不代表生产 pass。
+
+### 必须遵守
+
+每次涉及"localStorage 中数据值"的冒烟测试,**必须先确认测试时本地 localStorage 实际状态**:
+
+- **空 localStorage**(playwright-cli 每次 open 都是空的)→ loadData 会加载 hardcoded 默认数据,而非生产数据
+- **已通过管理员登录触发迁移**→ 数据已变为新格式
+
+### 标准做法
+
+涉及 archiveCode、studentId 等"会被业务逻辑修改"的字段时:
+
+1. **先用 wrapper 走一次管理员登录**(触发可能的 loadData / migration)
+2. **localstorage-get 取实际值**(不要用 hardcoded 假设值)
+3. **基于实际值做后续测试**
+
+### 反模式
+
+❌ 直接从 index.html 源码或文档中复制 hardcoded 字段值用于测试
+❌ 假设"生产环境的字段值 = 默认数据值"
+✅ 测试前用 wrapper 取一次实际值,再传给后续步骤
+
+如对某次测试的"数据状态是否匹配生产环境"存疑,**默认验证后再测试**,而不是假设"反正不影响代码路径"。

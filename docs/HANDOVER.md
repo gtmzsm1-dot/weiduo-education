@@ -139,6 +139,7 @@
 | `aiw-btn-save-quiz` | 保存小测 | `createAiWorkshopQuiz()` |
 | `aiw-btn-grade-quiz` | 作答批改 | `renderAiWorkshopQuizGradingPage()` |
 | `aiw-btn-print-quiz` | 打印预览 | `renderAiWorkshopQuizPrintPreview()` |
+| `aiw-btn-print-trigger` | 触发打印 | `window.print()` |
 | `aiw-btn-complete-quiz` | 完成小测 | `aiWorkshopMarkQuizCompleted()` |
 | `aiw-btn-add-question` | 新增题目 | `aiWorkshopShowQuestionModal()` |
 | `aiw-btn-question-up/down` | 题目排序 | `aiWorkshopMoveQuestion()` |
@@ -239,11 +240,13 @@ playwright-cli eval "(() => { functionName(); return 'ok'; })()"
 
 ### 3.5 管理员密码
 
-```
-weiduo2026
-```
+密码：`weiduo2026`（不变）
 
-代码中硬编码于 `const ADMIN_PASSWORD = 'weiduo2026';`（约第410行）。
+存储方式：SHA-256 哈希，源码中只保留哈希值。
+
+⚠️ **安全说明**：SHA-256 哈希存储仅防止"F12 直接看到明文密码"，**不防止针对性爆破**——攻击者拿到源码哈希后仍可用字典攻击恢复明文。
+
+真正的认证安全需要等阶段 7 接入后端实现。当前架构下，这是"基础保护"而非"真认证"。
 
 ---
 
