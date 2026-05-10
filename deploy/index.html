@@ -2017,35 +2017,7 @@ async function doCloudLogin(code, errEl){
     }
     return;
   } catch (e) {
-    // ★ 容错:云端取不到,回退到 localStorage(单机管理员自己也用 ?code= 的场景)
-    doLocalLogin(code, errEl, e.message);
-  }
-}
-
-function doLocalLogin(code, errEl, cloudErrorMsg){
-  const student = allStudents.find(s => s.archiveCode === code);
-  if(student){
-    errEl.textContent='';
-    currentStudent = student;
-    isAdmin = false;
-    showProfilePage();
-  } else {
-    // 区分"云错误"和"本地也找不到"
-    if(cloudErrorMsg && cloudErrorMsg.indexOf('无法加载') >= 0){
-      errEl.textContent = '档案数据加载失败,请检查网络后重试';
-    } else if(cloudErrorMsg && cloudErrorMsg.indexOf('档案码无效') >= 0){
-      errEl.textContent = '档案码无效';
-    } else {
-      errEl.textContent = '档案编号不存在，请核对后重试';
-    }
-    return;
-  }
-  if (window.history && window.history.replaceState) {
-    const url = new URL(window.location.href);
-    if (url.searchParams.has('code')) {
-      url.searchParams.delete('code');
-      window.history.replaceState({}, document.title, url.toString());
-    }
+    errEl.textContent = e.message;
   }
 }
 
