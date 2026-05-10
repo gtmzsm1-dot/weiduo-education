@@ -387,8 +387,12 @@ body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-ser
 
 <script>
 const BASE_URL = window.location.href.split('?')[0];
-const ADMIN_PASSWORD = 'weiduo2026';
+const ADMIN_PASSWORD_HASH = 'a98381c6e28518d164b00e9c9f6257627c7ad7e5d68b7367da95bbfc8be4e0a8';
 const COMM_WARN_DAYS = 14; // 超过14天未沟通则提醒
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
 const SUBJECT_OPTIONS = ["语文","数学","英语","物理","化学","地理","生物"];
 const PRODUCT_OPTIONS = ["周内午托","周内晚辅","周末培优语文","周末培优数学","周末培优英语","周末培优物理","周末培优化学","周末培优地理","周末培优生物","全日制","其它"];
 const GRADE_ORDER = ["小一","小二","小三","小四","小五","小六","初一","初二","初三","高一","高二","高三","其他"];
@@ -773,10 +777,11 @@ function doLogin(){
   }
 }
 
-function doAdminLogin(){
+async function doAdminLogin(){
   const pwd = document.getElementById('adminPassword').value;
   const errEl = document.getElementById('errorMsg');
-  if(pwd === ADMIN_PASSWORD){
+  const inputHash = await sha256Hex(pwd);
+  if(inputHash === ADMIN_PASSWORD_HASH){
     isAdmin = true;
     currentStudent = null;
     errEl.textContent='';
