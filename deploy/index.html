@@ -3123,7 +3123,7 @@ function renderAiWorkshopQuizPrintPreview(quizId, mode='student'){
       <button class="admin-btn" onclick="renderAiWorkshopQuizQuestions('${quizId}')">← 返回题目管理</button>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="admin-btn" onclick="renderAiWorkshopQuizPrintPreview('${quizId}','${aiWorkshopPrintMode==='student'?'teacher':'student'}')">切换为${aiWorkshopPrintMode==='student'?'教师批改版':'学生作答版'}</button>
-        <button class="admin-btn primary" onclick="window.print()">打印</button>
+        <button class="admin-btn primary" data-testid="aiw-btn-print-trigger" onclick="window.print()">🖨️ 打印</button>
       </div>
     </div>
     <div class="aiw-card">

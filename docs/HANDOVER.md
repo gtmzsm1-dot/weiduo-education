@@ -139,6 +139,7 @@
 | `aiw-btn-save-quiz` | 保存小测 | `createAiWorkshopQuiz()` |
 | `aiw-btn-grade-quiz` | 作答批改 | `renderAiWorkshopQuizGradingPage()` |
 | `aiw-btn-print-quiz` | 打印预览 | `renderAiWorkshopQuizPrintPreview()` |
+| `aiw-btn-print-trigger` | 触发打印 | `window.print()` |
 | `aiw-btn-complete-quiz` | 完成小测 | `aiWorkshopMarkQuizCompleted()` |
 | `aiw-btn-add-question` | 新增题目 | `aiWorkshopShowQuestionModal()` |
 | `aiw-btn-question-up/down` | 题目排序 | `aiWorkshopMoveQuestion()` |
